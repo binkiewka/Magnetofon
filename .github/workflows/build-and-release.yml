@@ -50,11 +50,36 @@ jobs:
 
       - name: Build Tauri App (Linux)
         uses: tauri-apps/tauri-action@v0
-        env:
-          APPIMAGE_EXTRACT_AND_RUN: 1
-          NO_STRIP: "true"
         with:
-          args: --bundles deb,appimage
+          args: --bundles deb
+
+      - name: Build AppImage via appimagetool
+        run: |
+          mkdir -p AppDir/usr/bin AppDir/usr/share/icons/hicolor/512x512/apps src-tauri/target/release/bundle/appimage
+          cp src-tauri/target/release/magnetofon AppDir/usr/bin/
+          cp src-tauri/icons/128x128.png AppDir/magnetofon.png
+          cp src-tauri/icons/128x128.png AppDir/usr/share/icons/hicolor/512x512/apps/magnetofon.png
+          cat << "EOF" > AppDir/magnetofon.desktop
+          [Desktop Entry]
+          Name=Magnetofon
+          Exec=magnetofon
+          Icon=magnetofon
+          Type=Application
+          Categories=Audio;Music;Player;
+          EOF
+          cat << "EOF" > AppDir/AppRun
+          #!/bin/sh
+          SELF=$(readlink -f "$0")
+          HERE=${SELF%/*}
+          export PATH="${HERE}/usr/bin:${PATH}"
+          exec "${HERE}/usr/bin/magnetofon" "$@"
+          EOF
+          chmod +x AppDir/AppRun
+          wget -q https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+          version="$(node -p "require('./package.json').version")"
+          ./appimagetool-x86_64.AppImage --appimage-extract-and-run AppDir "src-tauri/target/release/bundle/appimage/Magnetofon_${version}_amd64.AppImage"
+          rm -rf AppDir appimagetool-x86_64.AppImage
 
       - name: Upload Linux bundle artifact
         uses: actions/upload-artifact@v4
