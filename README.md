@@ -11,7 +11,12 @@
 </p>
 
 <p align="center">
+  <img src="screenshots/magnetofon-front.jpg" width="850" alt="Magnetofon ST-8000 Interface Showcase" />
+</p>
+
+<p align="center">
   <a href="#-key-features">Features</a> •
+  <a href="#-interface-showcase">Gallery</a> •
   <a href="#-how-to-use">User Guide</a> •
   <a href="#-visuals-engine--music-reactivity">Visualizer Guide</a> •
   <a href="#-installation--setup">Setup & Build</a> •
@@ -51,6 +56,40 @@ Key design highlights:
 - **McIntosh Sapphire Blue & Warm Amber Illumination**: High-DPI canvas renderings of analog VU meter needles, warm incandescent backlights, and blue acrylic glass panels.
 - **Sony ES Brushed Metallic Chassis**: Tactile extruded buttons, knurled volume knobs, 3D recessed slider tracks, and authentic cabinet cheeks with mounting hex screws.
 - **Hardware-Accelerated C++ Visualizer**: Embedded `projectMSDL` process running projectM 4.2 with full MilkDrop preset compatibility.
+
+---
+
+## 📸 Interface Showcase
+
+<p align="center">
+  <strong>Hi-Fi Stack Main Player Window</strong><br/>
+  <img src="screenshots/magnetofon-front.jpg" width="850" alt="Magnetofon Main Player Window" />
+</p>
+
+<p align="center">
+  <strong>Visual Control Overlay — Status & Launch Control</strong><br/>
+  <img src="screenshots/vis_ctrl_1.jpg" width="850" alt="Visual Control Status" />
+</p>
+
+<p align="center">
+  <strong>Visual Control Overlay — 9k+ MilkDrop Preset Pack Downloader</strong><br/>
+  <img src="screenshots/vis_ctrl_2.jpg" width="850" alt="Preset Pack Downloader" />
+</p>
+
+<p align="center">
+  <strong>Visual Control Overlay — Visual Theme & Category Filter</strong><br/>
+  <img src="screenshots/vis_ctrl_3.jpg" width="850" alt="Visual Theme Selector" />
+</p>
+
+<p align="center">
+  <strong>Visual Control Overlay — Live Keyboard & Mouse Shortcuts Guide</strong><br/>
+  <img src="screenshots/vis_ctrl_4.jpg" width="850" alt="Shortcuts Guide" />
+</p>
+
+<p align="center">
+  <strong>Visual Control Overlay — Timing, Rotation & Reactivity Controls</strong><br/>
+  <img src="screenshots/vis_ctrl_5.jpg" width="850" alt="Timing and Reactivity" />
+</p>
 
 ---
 
