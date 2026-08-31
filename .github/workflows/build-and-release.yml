@@ -104,7 +104,9 @@ jobs:
 
   build-windows:
     name: Build Windows Package (NSIS & MSI Installer)
-    runs-on: windows-latest
+    # WiX 3's MSI validation requires the legacy VBScript engine. The newer
+    # windows-latest image (Server 2025/VS 2026) no longer includes it.
+    runs-on: windows-2022
 
     steps:
       - name: Checkout Code
@@ -131,7 +133,7 @@ jobs:
       - name: Build Tauri App (Windows)
         uses: tauri-apps/tauri-action@v0
         with:
-          args: --bundles nsis,msi
+          args: --bundles nsis,msi --verbose
 
       - name: Upload Windows bundle artifact
         uses: actions/upload-artifact@v4
