@@ -75,7 +75,7 @@ jobs:
           exec "${HERE}/usr/bin/magnetofon" "$@"
           EOF
           chmod +x AppDir/AppRun
-          wget -q https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage
+          wget -q https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
           chmod +x appimagetool-x86_64.AppImage
           version="$(node -p "require('./package.json').version")"
           ARCH=x86_64 ./appimagetool-x86_64.AppImage --appimage-extract-and-run -n AppDir "src-tauri/target/release/bundle/appimage/Magnetofon_${version}_amd64.AppImage"
