@@ -18,8 +18,8 @@ permissions:
 
 jobs:
   build-linux:
-    name: Build Linux Package (deb)
-    runs-on: ubuntu-latest
+    name: Build Linux Packages (deb & AppImage)
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout Code
