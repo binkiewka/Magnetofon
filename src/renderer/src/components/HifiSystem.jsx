@@ -33,6 +33,18 @@ import { VisualsControlPanel } from './VisualsControlPanel'
 import '../assets/hifi.css'
 
 const eqBandsList = ['31', '62', '125', '250', '500', '1k', '2k', '4k', '8k', '16k']
+const HIFI_BASE_WIDTH = 940
+const HIFI_BASE_HEIGHT = 640
+const RESIZE_HANDLES = [
+  ['north', 'North'],
+  ['north-east', 'NorthEast'],
+  ['east', 'East'],
+  ['south-east', 'SouthEast'],
+  ['south', 'South'],
+  ['south-west', 'SouthWest'],
+  ['west', 'West'],
+  ['north-west', 'NorthWest']
+]
 
 const presets = {
   FLAT: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -132,6 +144,12 @@ function SpectrumAnalyzer({ isPlaying }) {
     const render = () => {
       if (!running) return
 
+      if (document.documentElement.classList.contains('visuals-control-open')) {
+        animRef.current = requestAnimationFrame(render)
+        return
+      }
+
+      updateSize()
       const dpr = window.devicePixelRatio || 1
       const rect = container.getBoundingClientRect()
       const w = Math.floor(rect.width)
@@ -837,64 +855,96 @@ function CassettePanel() {
    ========================================================================== */
 export function HifiSystem() {
   const [showVisualsControl, setShowVisualsControl] = useState(false)
+  const [viewportScale, setViewportScale] = useState(() =>
+    Math.min(window.innerWidth / HIFI_BASE_WIDTH, window.innerHeight / HIFI_BASE_HEIGHT)
+  )
+
+  useEffect(() => {
+    const updateViewportScale = () => {
+      setViewportScale(
+        Math.min(window.innerWidth / HIFI_BASE_WIDTH, window.innerHeight / HIFI_BASE_HEIGHT)
+      )
+    }
+
+    window.addEventListener('resize', updateViewportScale)
+    return () => window.removeEventListener('resize', updateViewportScale)
+  }, [])
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('visuals-control-open', showVisualsControl)
+    return () => document.documentElement.classList.remove('visuals-control-open')
+  }, [showVisualsControl])
 
   return (
-    <main className="hifi-system-container">
-      <div className="hifi-cabinet-casing">
-        <div className="cabinet-cheek cheek-left" />
-        <div className="cabinet-cheek cheek-right" />
-        <div className="cabinet-screws screw-t-left" />
-        <div className="cabinet-screws screw-t-right" />
-        <div className="cabinet-screws screw-b-left" />
-        <div className="cabinet-screws screw-b-right" />
+    <main className="hifi-system-viewport">
+      {RESIZE_HANDLES.map(([position, direction]) => (
+        <div
+          key={direction}
+          className={`window-resize-handle resize-${position}`}
+          onMouseDown={(event) => {
+            if (event.button !== 0) return
+            event.preventDefault()
+            window.api?.windowManager?.startResize(direction)
+          }}
+        />
+      ))}
+      <div className="hifi-system-container" style={{ '--hifi-viewport-scale': viewportScale }}>
+        <div className="hifi-cabinet-casing">
+          <div className="cabinet-cheek cheek-left" />
+          <div className="cabinet-cheek cheek-right" />
+          <div className="cabinet-screws screw-t-left" />
+          <div className="cabinet-screws screw-t-right" />
+          <div className="cabinet-screws screw-b-left" />
+          <div className="cabinet-screws screw-b-right" />
 
-        <div className="hifi-cabinet-inner">
-          <div className="hifi-titlebar">
-            <div className="hifi-brand">
-              <strong>MAGNETOFON</strong>
-              <span>HI-FI STEREO CONSOLE / MODEL ST-8000</span>
+          <div className="hifi-cabinet-inner">
+            <div className="hifi-titlebar" data-tauri-drag-region="deep">
+              <div className="hifi-brand">
+                <strong>MAGNETOFON</strong>
+                <span>HI-FI STEREO CONSOLE / MODEL ST-8000</span>
+              </div>
+              <div className="hifi-title-actions" data-tauri-drag-region="false">
+                <HifiButton onClick={() => window.api?.visuals?.toggle()}>VISUALS</HifiButton>
+                <HifiButton
+                  className={showVisualsControl ? 'active' : ''}
+                  onClick={() => setShowVisualsControl(!showVisualsControl)}
+                  title="Visuals Control & Audio Reactivity Engine"
+                >
+                  <Sliders size={12} style={{ marginRight: '4px' }} />
+                  VIS CTRL
+                </HifiButton>
+                <HifiButton
+                  className="close"
+                  onClick={() => window.api?.windowManager?.closeCurrent()}
+                >
+                  <X size={16} />
+                </HifiButton>
+              </div>
             </div>
-            <div className="hifi-title-actions">
-              <HifiButton onClick={() => window.api?.windowManager?.toggle('visuals')}>
-                VISUALS
-              </HifiButton>
-              <HifiButton
-                className={showVisualsControl ? 'active' : ''}
-                onClick={() => setShowVisualsControl(!showVisualsControl)}
-                title="Visuals Control & Audio Reactivity Engine"
-              >
-                <Sliders size={12} style={{ marginRight: '4px' }} />
-                VIS CTRL
-              </HifiButton>
-              <HifiButton
-                className="close"
-                onClick={() => window.api?.windowManager?.closeCurrent()}
-              >
-                <X size={16} />
-              </HifiButton>
+
+            <div className="hifi-2col-layout">
+              <div className="hifi-column col-left">
+                <AmplifierPanel />
+                <VuMeterPanel />
+                <PlaylistPanel />
+              </div>
+
+              <div className="hifi-column col-right">
+                <EqualizerPanel />
+                <ProgramMonitorPanel />
+                <CassettePanel />
+              </div>
             </div>
           </div>
 
-          <div className="hifi-2col-layout">
-            <div className="hifi-column col-left">
-              <AmplifierPanel />
-              <VuMeterPanel />
-              <PlaylistPanel />
-            </div>
+          {showVisualsControl && (
+            <VisualsControlPanel onClose={() => setShowVisualsControl(false)} />
+          )}
 
-            <div className="hifi-column col-right">
-              <EqualizerPanel />
-              <ProgramMonitorPanel />
-              <CassettePanel />
-            </div>
+          <div className="cabinet-feet">
+            <div className="foot foot-left" />
+            <div className="foot foot-right" />
           </div>
-        </div>
-
-        {showVisualsControl && <VisualsControlPanel onClose={() => setShowVisualsControl(false)} />}
-
-        <div className="cabinet-feet">
-          <div className="foot foot-left" />
-          <div className="foot foot-right" />
         </div>
       </div>
     </main>

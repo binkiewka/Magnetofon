@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Power,
   RefreshCw,
@@ -16,6 +16,8 @@ import {
   Clipboard,
   Keyboard
 } from 'lucide-react'
+
+const MAX_VISIBLE_PRESETS = 250
 
 export function VisualsControlPanel({ onClose }) {
   const [settings, setSettings] = useState({
@@ -202,15 +204,10 @@ export function VisualsControlPanel({ onClose }) {
   }
 
   const handleToggleVisualizer = async () => {
-    if (!window.api?.windowManager) return
+    if (!window.api?.visuals?.toggle) return
     try {
-      await window.api.windowManager.toggle('visuals')
-      setTimeout(async () => {
-        if (window.api?.visuals?.getStatus) {
-          const st = await window.api.visuals.getStatus()
-          setIsRunning(Boolean(st?.isRunning))
-        }
-      }, 500)
+      const status = await window.api.visuals.toggle(settings)
+      setIsRunning(Boolean(status?.isRunning))
     } catch (err) {
       console.error('[VisualsControlPanel] Toggle failed:', err)
     }
@@ -249,8 +246,14 @@ export function VisualsControlPanel({ onClose }) {
     }
   }
 
-  const filteredPresets = presetsList.filter((item) =>
-    item.filename.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredPresets = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase()
+    if (!normalizedQuery) return presetsList
+    return presetsList.filter((item) => item.filename.toLowerCase().includes(normalizedQuery))
+  }, [presetsList, searchQuery])
+  const visiblePresets = useMemo(
+    () => filteredPresets.slice(0, MAX_VISIBLE_PRESETS),
+    [filteredPresets]
   )
 
   const likedCount = Object.keys(settings.curatedPresets || {}).filter(
@@ -259,7 +262,7 @@ export function VisualsControlPanel({ onClose }) {
 
   return (
     <div className="hifi-visuals-modal-overlay" onClick={onClose}>
-      <div className="hifi-visuals-panel metallic-surface" onClick={(e) => e.stopPropagation()}>
+      <div className="hifi-visuals-panel" onClick={(e) => e.stopPropagation()}>
         {/* Title bar */}
         <div className="hifi-titlebar">
           <div className="hifi-brand">
@@ -702,7 +705,7 @@ export function VisualsControlPanel({ onClose }) {
                 {filteredPresets.length === 0 ? (
                   <div className="empty-presets-text">No presets found matching query</div>
                 ) : (
-                  filteredPresets.map((item) => {
+                  visiblePresets.map((item) => {
                     const isLiked = settings.curatedPresets?.[item.filename] === 'liked'
                     const isCuratedFolder = item.source === 'curated'
 
@@ -742,6 +745,12 @@ export function VisualsControlPanel({ onClose }) {
                       </div>
                     )
                   })
+                )}
+                {filteredPresets.length > visiblePresets.length && (
+                  <div className="preset-limit-message">
+                    Showing the first {MAX_VISIBLE_PRESETS} of {filteredPresets.length} presets.
+                    Search to narrow the list.
+                  </div>
                 )}
               </div>
             </div>

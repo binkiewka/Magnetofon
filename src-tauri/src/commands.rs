@@ -18,6 +18,7 @@ pub struct PresetPackStatus {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProjectMConfig {
     pub preset_category: Option<String>,
     pub preset_path: Option<String>,
@@ -27,18 +28,91 @@ pub struct ProjectMConfig {
     pub beat_sensitivity: Option<f32>,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectMStatus {
+    pub is_running: bool,
+}
+
+fn has_presets(path: &Path) -> bool {
+    path.join("presets").exists() || path.join("curated/presets").exists()
+}
+
 fn get_visuals_dir(app_handle: &AppHandle) -> PathBuf {
     if let Ok(app_data) = app_handle.path().app_data_dir() {
         let user_visuals = app_data.join("visuals");
-        if user_visuals.join("presets").exists() {
+        if has_presets(&user_visuals) {
             return user_visuals;
         }
     }
+
     let local_visuals = PathBuf::from("visuals");
-    if local_visuals.join("presets").exists() {
+    if has_presets(&local_visuals) {
         return local_visuals;
     }
-    app_handle.path().app_data_dir().unwrap_or_default().join("visuals")
+
+    if let Ok(resource_dir) = app_handle.path().resource_dir() {
+        for bundled_visuals in [
+            resource_dir.join("visuals"),
+            resource_dir.join("_up_/visuals"),
+        ] {
+            if has_presets(&bundled_visuals) {
+                return bundled_visuals;
+            }
+        }
+    }
+
+    app_handle
+        .path()
+        .app_data_dir()
+        .unwrap_or_default()
+        .join("visuals")
+}
+
+fn get_projectm_root(app_handle: &AppHandle) -> Result<PathBuf, String> {
+    let platform_dir = if cfg!(target_os = "windows") {
+        "win-x64"
+    } else {
+        "linux-x64"
+    };
+    let relative = PathBuf::from("resources/projectm").join(platform_dir);
+
+    if relative.exists() {
+        return Ok(relative);
+    }
+
+    let resource_dir = app_handle
+        .path()
+        .resource_dir()
+        .map_err(|err| err.to_string())?;
+    for bundled_root in [
+        resource_dir.join(&relative),
+        resource_dir.join("_up_").join(&relative),
+    ] {
+        if bundled_root.exists() {
+            return Ok(bundled_root);
+        }
+    }
+
+    Err(format!(
+        "Bundled projectM runtime was not found at {}",
+        relative.display()
+    ))
+}
+
+fn projectm_is_running() -> Result<bool, String> {
+    let mut process = PROJECTM_PROCESS.lock().map_err(|err| err.to_string())?;
+    let is_running = if let Some(child) = process.as_mut() {
+        child.try_wait().map_err(|err| err.to_string())?.is_none()
+    } else {
+        false
+    };
+
+    if !is_running {
+        *process = None;
+    }
+
+    Ok(is_running)
 }
 
 fn count_milk_files(dir: &Path) -> usize {
@@ -60,7 +134,7 @@ fn count_milk_files(dir: &Path) -> usize {
 pub async fn get_preset_pack_status(app_handle: AppHandle) -> Result<PresetPackStatus, String> {
     let visuals_dir = get_visuals_dir(&app_handle);
     let presets_dir = visuals_dir.join("presets");
-    
+
     if presets_dir.exists() {
         let count = count_milk_files(&presets_dir);
         Ok(PresetPackStatus {
@@ -89,14 +163,14 @@ pub async fn download_preset_pack(app_handle: AppHandle) -> Result<PresetPackSta
     let zip_path = target_dir.join("preset_pack.zip");
 
     let url = "https://github.com/binkiewka/Magnetofon/releases/download/v1.0.0/Isosceles_CreamOfTheCrop_MilkdropPresetsPack.zip";
-    
+
     let client = reqwest::Client::new();
     let res = client.get(url).send().await.map_err(|e| e.to_string())?;
-    
+
     let total_size = res.content_length().unwrap_or(138_000_000);
     let mut downloaded: u64 = 0;
     let mut stream = res.bytes_stream();
-    
+
     let mut out_file = File::create(&zip_path).map_err(|e| e.to_string())?;
 
     use futures_util::StreamExt;
@@ -104,24 +178,30 @@ pub async fn download_preset_pack(app_handle: AppHandle) -> Result<PresetPackSta
         let chunk = chunk_result.map_err(|e| e.to_string())?;
         out_file.write_all(&chunk).map_err(|e| e.to_string())?;
         downloaded += chunk.len() as u64;
-        
+
         let percent = ((downloaded as f64 / total_size as f64) * 50.0) as u32;
-        let _ = app_handle.emit("preset-pack-progress", serde_json::json!({
-            "stage": "downloading",
-            "percent": percent,
-            "downloaded": downloaded,
-            "total": total_size
-        }));
+        let _ = app_handle.emit(
+            "preset-pack-progress",
+            serde_json::json!({
+                "stage": "downloading",
+                "percent": percent,
+                "downloaded": downloaded,
+                "total": total_size
+            }),
+        );
     }
 
-    let _ = app_handle.emit("preset-pack-progress", serde_json::json!({
-        "stage": "extracting",
-        "percent": 55,
-    }));
+    let _ = app_handle.emit(
+        "preset-pack-progress",
+        serde_json::json!({
+            "stage": "extracting",
+            "percent": 55,
+        }),
+    );
 
     let zip_file = File::open(&zip_path).map_err(|e| e.to_string())?;
     let mut archive = zip::ZipArchive::new(zip_file).map_err(|e| e.to_string())?;
-    
+
     let len = archive.len();
     for i in 0..len {
         let mut file = archive.by_index(i).map_err(|e| e.to_string())?;
@@ -144,10 +224,13 @@ pub async fn download_preset_pack(app_handle: AppHandle) -> Result<PresetPackSta
 
         if i % 100 == 0 {
             let percent = 50 + (((i as f64 / len as f64) * 50.0) as u32);
-            let _ = app_handle.emit("preset-pack-progress", serde_json::json!({
-                "stage": "extracting",
-                "percent": percent
-            }));
+            let _ = app_handle.emit(
+                "preset-pack-progress",
+                serde_json::json!({
+                    "stage": "extracting",
+                    "percent": percent
+                }),
+            );
         }
     }
 
@@ -160,21 +243,33 @@ pub async fn download_preset_pack(app_handle: AppHandle) -> Result<PresetPackSta
         path: target_dir.join("presets").to_string_lossy().to_string(),
     };
 
-    let _ = app_handle.emit("preset-pack-progress", serde_json::json!({
-        "stage": "completed",
-        "percent": 100,
-        "count": count
-    }));
+    let _ = app_handle.emit(
+        "preset-pack-progress",
+        serde_json::json!({
+            "stage": "completed",
+            "percent": 100,
+            "count": count
+        }),
+    );
 
     Ok(status)
 }
 
 #[tauri::command]
-pub async fn launch_projectm(app_handle: AppHandle, config: Option<ProjectMConfig>) -> Result<(), String> {
+pub async fn launch_projectm(
+    app_handle: AppHandle,
+    config: Option<ProjectMConfig>,
+) -> Result<(), String> {
     stop_projectm().await?;
 
     let visuals_dir = get_visuals_dir(&app_handle);
-    let mut preset_path = visuals_dir.join("presets");
+    let main_presets = visuals_dir.join("presets");
+    let curated_presets = visuals_dir.join("curated/presets");
+    let mut preset_path = if main_presets.exists() {
+        main_presets
+    } else {
+        curated_presets
+    };
 
     if let Some(cfg) = &config {
         if let Some(cat) = &cfg.preset_category {
@@ -198,15 +293,34 @@ pub async fn launch_projectm(app_handle: AppHandle, config: Option<ProjectMConfi
         }
     }
 
+    let projectm_root = get_projectm_root(&app_handle)?;
     let projectm_bin = if cfg!(target_os = "windows") {
-        PathBuf::from("resources/projectm/win-x64/bin/projectMSDL.exe")
+        projectm_root.join("bin/projectMSDL.exe")
     } else {
-        PathBuf::from("resources/projectm/linux-x64/bin/projectMSDL")
+        projectm_root.join("bin/projectMSDL")
     };
 
     let mut cmd = Command::new(projectm_bin);
     cmd.arg("--presetPath").arg(&preset_path);
-    cmd.arg("--texturePath").arg(visuals_dir.join("textures"));
+    let main_textures = visuals_dir.join("textures");
+    let texture_path = if main_textures.exists() {
+        main_textures
+    } else {
+        visuals_dir.join("curated/textures")
+    };
+    cmd.arg("--texturePath").arg(texture_path);
+    cmd.arg("--enableSplash=0");
+
+    if cfg!(target_os = "linux") {
+        let library_dir = projectm_root.join("lib");
+        let existing = std::env::var_os("LD_LIBRARY_PATH").unwrap_or_default();
+        let mut library_path = library_dir.into_os_string();
+        if !existing.is_empty() {
+            library_path.push(":");
+            library_path.push(existing);
+        }
+        cmd.env("LD_LIBRARY_PATH", library_path);
+    }
 
     if let Some(cfg) = config {
         if let Some(fps) = cfg.fps {
@@ -237,6 +351,27 @@ pub async fn stop_projectm() -> Result<(), String> {
         let _ = child.kill();
     }
     Ok(())
+}
+
+#[tauri::command]
+pub async fn get_projectm_status() -> Result<ProjectMStatus, String> {
+    Ok(ProjectMStatus {
+        is_running: projectm_is_running()?,
+    })
+}
+
+#[tauri::command]
+pub async fn toggle_projectm(
+    app_handle: AppHandle,
+    config: Option<ProjectMConfig>,
+) -> Result<ProjectMStatus, String> {
+    if projectm_is_running()? {
+        stop_projectm().await?;
+    } else {
+        launch_projectm(app_handle, config).await?;
+    }
+
+    get_projectm_status().await
 }
 
 #[tauri::command]

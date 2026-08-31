@@ -54,6 +54,12 @@ export function VuMeter({ isPlaying }) {
     const render = () => {
       if (!running) return
 
+      if (document.documentElement.classList.contains('visuals-control-open')) {
+        animFrameRef.current = requestAnimationFrame(render)
+        return
+      }
+
+      updateCanvasSize()
       const dpr = window.devicePixelRatio || 1
       const rect = container.getBoundingClientRect()
       const displayWidth = Math.floor(rect.width)

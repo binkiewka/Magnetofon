@@ -1,6 +1,6 @@
 {
   "name": "magnetofon",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Magnetofon ST-8000 — High-Fidelity Audio Console & Native MilkDrop Visualizer Engine",
   "author": "Magnetofon Team",
   "homepage": "https://github.com/binkiewka/Magnetofon",
@@ -8,6 +8,7 @@
     "format": "prettier --write .",
     "lint": "eslint --cache .",
     "dev": "tauri dev",
+    "dev:web": "vite",
     "build": "vite build",
     "tauri": "tauri",
     "dev:tauri": "tauri dev",

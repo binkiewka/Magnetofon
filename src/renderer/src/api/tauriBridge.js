@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { readText } from '@tauri-apps/plugin-clipboard-manager'
 import { open } from '@tauri-apps/plugin-dialog'
 
@@ -16,8 +17,28 @@ export const initTauriBridge = () => {
             console.warn('[Tauri] toggle_window error:', e)
           }
         },
-        closeCurrent: () => {},
-        toggleFullscreen: () => {}
+        closeCurrent: async () => {
+          try {
+            await getCurrentWindow().close()
+          } catch (e) {
+            console.warn('[Tauri] close window error:', e)
+          }
+        },
+        startResize: async (direction) => {
+          try {
+            await getCurrentWindow().startResizeDragging(direction)
+          } catch (e) {
+            console.warn('[Tauri] start resize error:', e)
+          }
+        },
+        toggleFullscreen: async () => {
+          try {
+            const currentWindow = getCurrentWindow()
+            await currentWindow.setFullscreen(!(await currentWindow.isFullscreen()))
+          } catch (e) {
+            console.warn('[Tauri] toggle fullscreen error:', e)
+          }
+        }
       },
       metadata: {
         getPath: (file) => file.path || file.name,
@@ -35,6 +56,16 @@ export const initTauriBridge = () => {
             filters: [{ name: 'Audio', extensions: ['mp3', 'flac', 'wav', 'ogg', 'm4a', 'aac'] }]
           })
           return selected
+        },
+        getLaunchFiles: async () => invoke('get_launch_audio_files'),
+        onOpenFiles: (callback) => {
+          let unlisten = null
+          listen('open-audio-files', (event) => callback(event.payload)).then((fn) => {
+            unlisten = fn
+          })
+          return () => {
+            if (unlisten) unlisten()
+          }
         },
         sendState: () => {},
         getConfig: async () => ({}),
@@ -55,9 +86,10 @@ export const initTauriBridge = () => {
         getPresets: async () => [],
         getSettings: async () => ({}),
         saveSettings: async () => {},
+        toggle: async (config) => invoke('toggle_projectm', { config }),
         restart: async (config) => invoke('launch_projectm', { config }),
         stop: async () => invoke('stop_projectm'),
-        getStatus: async () => ({ isRunning: false }),
+        getStatus: async () => invoke('get_projectm_status'),
         getAudioDevices: async () => [],
         getClipboardText: async () => {
           try {

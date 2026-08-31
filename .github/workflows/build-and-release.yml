@@ -55,18 +55,28 @@ jobs:
 
       - name: Build AppImage via appimagetool
         run: |
-          mkdir -p AppDir/usr/bin AppDir/usr/share/icons/hicolor/512x512/apps src-tauri/target/release/bundle/appimage
+          mkdir -p AppDir/usr/bin AppDir/usr/lib/Magnetofon/_up_/resources AppDir/usr/lib/Magnetofon/_up_/visuals AppDir/usr/share/icons/hicolor/512x512/apps src-tauri/target/release/bundle/appimage
           cp src-tauri/target/release/magnetofon AppDir/usr/bin/
-          cp src-tauri/icons/128x128.png AppDir/magnetofon.png
-          cp src-tauri/icons/128x128.png AppDir/usr/share/icons/hicolor/512x512/apps/magnetofon.png
+          cp -a resources/projectm AppDir/usr/lib/Magnetofon/_up_/resources/
+          cp -a visuals/curated AppDir/usr/lib/Magnetofon/_up_/visuals/
+          cp visuals/visuals.json AppDir/usr/lib/Magnetofon/_up_/visuals/
+          cp src-tauri/icons/icon.png AppDir/magnetofon.png
+          cp src-tauri/icons/icon.png AppDir/usr/share/icons/hicolor/512x512/apps/magnetofon.png
           cat << "EOF" > AppDir/magnetofon.desktop
           [Desktop Entry]
           Name=Magnetofon
-          Exec=magnetofon
+          GenericName=Music Player
+          Comment=High-fidelity music player with MilkDrop visuals
+          Exec=magnetofon %F
           Icon=magnetofon
           Type=Application
-          Categories=AudioVideo;Audio;
+          Categories=AudioVideo;Audio;Player;
+          MimeType=audio/mpeg;audio/flac;audio/wav;audio/ogg;audio/opus;audio/mp4;audio/aac;audio/x-ms-wma;audio/aiff;
+          Keywords=music;audio;player;playlist;visualizer;milkdrop;
+          StartupNotify=true
+          StartupWMClass=magnetofon
           EOF
+          desktop-file-validate AppDir/magnetofon.desktop
           cat << "EOF" > AppDir/AppRun
           #!/bin/sh
           SELF=$(readlink -f "$0")
@@ -140,7 +150,7 @@ jobs:
     needs:
       - build-linux
       - build-windows
-    if: github.event_name != 'pull_request'
+    if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
 

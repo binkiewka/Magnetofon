@@ -11,6 +11,40 @@ function App() {
     const handleHashChange = () => setHash(window.location.hash)
     window.addEventListener('hashchange', handleHashChange)
 
+    const importAudioFiles = async (paths, playFirst = false) => {
+      const uniquePaths = [...new Set(Array.isArray(paths) ? paths : [])].filter(Boolean)
+      if (!uniquePaths.length) return
+
+      const tracks = []
+      for (const path of uniquePaths) {
+        const meta = await window.api.metadata.parse(path)
+        tracks.push({ path, meta })
+        usePlayerStore.getState().addToPlaylist({ path, meta })
+      }
+
+      const first = tracks[0]
+      if (first && (playFirst || !usePlayerStore.getState().file)) {
+        usePlayerStore.getState().setFile(first.path, first.meta)
+        if (playFirst) usePlayerStore.getState().setIsPlaying(true)
+      }
+    }
+
+    let stopOpenFileListener = () => {}
+    const isPlayerWindow = window.location.hash === '#player' || window.location.hash === ''
+
+    if (isPlayerWindow) {
+      stopOpenFileListener = window.api.metadata.onOpenFiles((paths) => {
+        importAudioFiles(paths, true).catch((err) => {
+          console.error('Failed to open audio files from the operating system', err)
+        })
+      })
+
+      window.api.metadata
+        .getLaunchFiles()
+        .then((paths) => importAudioFiles(paths, true))
+        .catch((err) => console.error('Failed to load launch audio files', err))
+    }
+
     const isExternalFileDrag = (e) => {
       const types = Array.from(e.dataTransfer?.types || [])
       return types.includes('Files') || types.includes('text/uri-list')
@@ -52,17 +86,7 @@ function App() {
         }
       }
 
-      const store = usePlayerStore.getState()
-
-      for (const [index, path] of paths.entries()) {
-        if (!window.api?.metadata) continue
-        const meta = await window.api.metadata.parse(path)
-
-        store.addToPlaylist({ path, meta })
-        if (!store.file && index === 0) {
-          store.setFile(path, meta)
-        }
-      }
+      await importAudioFiles(paths)
     }
 
     window.addEventListener('dragover', preventDrag, { capture: true })
@@ -71,6 +95,7 @@ function App() {
 
     return () => {
       window.removeEventListener('hashchange', handleHashChange)
+      stopOpenFileListener()
       window.removeEventListener('dragover', preventDrag, { capture: true })
       window.removeEventListener('dragenter', preventDrag, { capture: true })
       window.removeEventListener('drop', handleGlobalDrop, { capture: true })

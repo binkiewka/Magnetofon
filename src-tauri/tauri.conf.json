@@ -1,10 +1,10 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Magnetofon",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "identifier": "com.magnetofon.desktop",
   "build": {
-    "beforeDevCommand": "npm run build",
+    "beforeDevCommand": "npm run dev:web",
     "devUrl": "http://localhost:5173",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../out/renderer"
@@ -15,12 +15,14 @@
         "title": "Magnetofon",
         "label": "player",
         "url": "index.html#player",
-        "width": 500,
-        "height": 400,
-        "resizable": false,
+        "width": 940,
+        "height": 640,
+        "minWidth": 470,
+        "minHeight": 320,
+        "resizable": true,
         "fullscreen": false,
         "decorations": false,
-        "transparent": false
+        "transparent": true
       },
       {
         "title": "Playlist",
@@ -43,17 +45,6 @@
         "fullscreen": false,
         "decorations": false,
         "visible": false
-      },
-      {
-        "title": "Visual Control Overlay",
-        "label": "visuals",
-        "url": "index.html#visuals",
-        "width": 800,
-        "height": 600,
-        "resizable": true,
-        "fullscreen": false,
-        "decorations": false,
-        "visible": false
       }
     ],
     "security": {
@@ -62,17 +53,92 @@
   },
   "bundle": {
     "active": true,
-    "targets": [
-      "deb"
+    "targets": ["deb"],
+    "category": "Music",
+    "shortDescription": "High-fidelity music player with MilkDrop visuals",
+    "longDescription": "Magnetofon is a high-fidelity desktop music player with playlist support, native audio playback, and projectM MilkDrop visualizations.",
+    "fileAssociations": [
+      {
+        "ext": ["mp3", "mp2", "mpga"],
+        "name": "MPEG Audio",
+        "description": "MPEG audio file",
+        "role": "Viewer",
+        "mimeType": "audio/mpeg"
+      },
+      {
+        "ext": ["flac"],
+        "name": "FLAC Audio",
+        "description": "FLAC audio file",
+        "role": "Viewer",
+        "mimeType": "audio/flac"
+      },
+      {
+        "ext": ["wav"],
+        "name": "Wave Audio",
+        "description": "Waveform audio file",
+        "role": "Viewer",
+        "mimeType": "audio/wav"
+      },
+      {
+        "ext": ["ogg", "oga"],
+        "name": "Ogg Audio",
+        "description": "Ogg audio file",
+        "role": "Viewer",
+        "mimeType": "audio/ogg"
+      },
+      {
+        "ext": ["opus"],
+        "name": "Opus Audio",
+        "description": "Opus audio file",
+        "role": "Viewer",
+        "mimeType": "audio/opus"
+      },
+      {
+        "ext": ["m4a", "m4b"],
+        "name": "MPEG-4 Audio",
+        "description": "MPEG-4 audio file",
+        "role": "Viewer",
+        "mimeType": "audio/mp4"
+      },
+      {
+        "ext": ["aac"],
+        "name": "AAC Audio",
+        "description": "AAC audio file",
+        "role": "Viewer",
+        "mimeType": "audio/aac"
+      },
+      {
+        "ext": ["wma"],
+        "name": "Windows Media Audio",
+        "description": "Windows Media audio file",
+        "role": "Viewer",
+        "mimeType": "audio/x-ms-wma"
+      },
+      {
+        "ext": ["aif", "aiff"],
+        "name": "AIFF Audio",
+        "description": "Audio Interchange File Format",
+        "role": "Viewer",
+        "mimeType": "audio/aiff"
+      }
     ],
+    "linux": {
+      "deb": {
+        "section": "sound",
+        "desktopTemplate": "linux/magnetofon.desktop.hbs"
+      }
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
+      "icons/icon.png",
       "icons/icon.ico"
     ],
     "resources": [
-      "../resources/projectm/**/*"
+      "../resources/projectm/**/*",
+      "../visuals/visuals.json",
+      "../visuals/curated/**/*"
     ]
   }
 }
