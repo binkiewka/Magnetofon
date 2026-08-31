@@ -1,0 +1,93 @@
+appId: com.magnetofon.app
+productName: Magnetofon
+directories:
+  buildResources: build
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md,for_dev.md}'
+  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+  - '!visuals/**'
+  - '!vendor/**'
+  - '!_plugin_extract/**'
+  - '!resources/projectm/include/**'
+  - '!resources/projectm/src/**'
+  - '!resources/projectm/CMakeLists.txt'
+asarUnpack:
+  - resources/**
+extraResources:
+  - from: resources/projectm
+    to: projectm
+    filter:
+      - '**/*'
+      - '!include/**'
+      - '!src/**'
+      - '!CMakeLists.txt'
+win:
+  executableName: magnetofon
+nsis:
+  artifactName: ${name}-${version}-setup.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+mac:
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo:
+    - NSMicrophoneUsageDescription: Application requests access to the device's microphone for audio visualization.
+    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
+    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+  notarize: false
+dmg:
+  artifactName: ${name}-${version}.${ext}
+linux:
+  target:
+    - AppImage
+    - snap
+    - deb
+  maintainer: Magnetofon Team
+  category: Audio;AudioVideo;Player;
+  mimeTypes:
+    - audio/mpeg
+    - audio/flac
+    - audio/x-flac
+    - audio/wav
+    - audio/x-wav
+    - audio/ogg
+    - audio/mp4
+    - audio/aac
+    - audio/x-mpegurl
+
+fileAssociations:
+  - ext: mp3
+    name: MP3 Audio Track
+    role: Viewer
+    mimeType: audio/mpeg
+  - ext: flac
+    name: FLAC Audio Track
+    role: Viewer
+    mimeType: audio/flac
+  - ext: wav
+    name: WAV Audio Track
+    role: Viewer
+    mimeType: audio/wav
+  - ext: ogg
+    name: Ogg Audio Track
+    role: Viewer
+    mimeType: audio/ogg
+  - ext: m4a
+    name: M4A Audio Track
+    role: Viewer
+    mimeType: audio/mp4
+  - ext: aac
+    name: AAC Audio Track
+    role: Viewer
+    mimeType: audio/aac
+  - ext: m3u
+    name: M3U Playlist
+    role: Viewer
+    mimeType: audio/x-mpegurl
+
+appImage:
+  artifactName: ${name}-${version}.${ext}
+npmRebuild: false

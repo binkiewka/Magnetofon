@@ -1,0 +1,1896 @@
+/* ==========================================================================
+   MAGNETOFON MCINTOSH / SONY ES ICY SAPPHIRE BLUE & CHARCOAL THEME
+   High-Contrast 3D Extruded Metallic Audio Equipment Aesthetics
+   ========================================================================== */
+
+html,
+body,
+#root {
+  background: transparent !important;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.hifi-system-container {
+  box-sizing: border-box;
+  width: 100vw;
+  height: 100vh;
+  padding: 10px;
+  background: transparent !important;
+  overflow: hidden;
+  color: #e6eae6;
+  font-family: var(--font-body);
+  display: grid;
+  place-items: center;
+}
+
+/* ==========================================================================
+   3D PHYSICAL HI-FI CABINET CHASSIS & RACK SLOTS (100% TRANSPARENT OUTER CANVAS)
+   ========================================================================== */
+.hifi-cabinet-casing {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-width: 1050px;
+  max-height: 740px;
+  aspect-ratio: 16 / 10.8;
+  box-sizing: border-box;
+  padding: 16px 24px;
+  border-radius: 12px;
+  border: none !important;
+  background:
+    linear-gradient(180deg, #30332e 0%, #1a1b18 35%, #0e0f0d 100%),
+    radial-gradient(ellipse at 50% 0%, rgba(0, 168, 255, 0.12), transparent 65%);
+  box-shadow:
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.4),
+    inset 0 -22px 45px rgba(0, 0, 0, 0.9) !important;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Heavy 3D Metallic Side Cheeks with Cylindrical Light Highlights */
+.cabinet-cheek {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 16px;
+  background: linear-gradient(
+    90deg,
+    #151714 0%,
+    #3a3d36 30%,
+    #4e5249 50%,
+    #252823 80%,
+    #0d0e0c 100%
+  );
+  border-right: 1px solid rgba(255, 255, 255, 0.18);
+  border-left: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: none !important;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.cheek-left {
+  left: 0;
+  border-radius: 12px 0 0 12px;
+}
+
+.cheek-right {
+  right: 0;
+  border-radius: 0 12px 12px 0;
+}
+
+/* 3D Recessed Socket Screws */
+.cabinet-screws {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #777, #222 80%);
+  border: 1px solid #111;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  z-index: 12;
+  pointer-events: none;
+}
+
+.screw-t-left {
+  top: 8px;
+  left: 4px;
+}
+.screw-t-right {
+  top: 8px;
+  right: 4px;
+}
+.screw-b-left {
+  bottom: 8px;
+  left: 4px;
+}
+.screw-b-right {
+  bottom: 8px;
+  right: 4px;
+}
+
+/* 3D Rubber & Chrome Isolation Feet */
+.cabinet-feet {
+  position: absolute;
+  bottom: -10px;
+  left: 44px;
+  right: 44px;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.foot {
+  width: 58px;
+  height: 10px;
+  border-radius: 0 0 5px 5px;
+  background: linear-gradient(180deg, #444 0%, #222 50%, #0a0a0a 100%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Inner Console Frame */
+.hifi-cabinet-inner {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+}
+
+/* Top Header & Titlebar (Centered App Title) */
+.hifi-titlebar {
+  position: relative;
+  z-index: 10;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  -webkit-app-region: drag;
+}
+
+.hifi-brand {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.hifi-brand strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 5px;
+  color: #ffffff;
+  text-shadow: 0 0 14px rgba(0, 168, 255, 0.45);
+}
+
+.hifi-brand span,
+.hifi-panel-header span {
+  display: block;
+  margin-top: 1px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: #88a4b8;
+}
+
+.hifi-title-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+  -webkit-app-region: no-drag;
+}
+
+/* ==========================================================================
+   2-COLUMN CONSOLE (EXTRUDED 3D COMPONENT PANELS)
+   ========================================================================== */
+.hifi-2col-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+}
+
+.hifi-column {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+}
+
+/* 3D EXTRUDED HI-FI DECK PANEL FACEPLATES */
+.hifi-panel {
+  position: relative;
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-sizing: border-box;
+  border-top: 1px solid rgba(255, 255, 255, 0.32);
+  border-left: 1px solid rgba(255, 255, 255, 0.18);
+  border-right: 1px solid rgba(0, 0, 0, 0.6);
+  border-bottom: 2px solid rgba(0, 0, 0, 0.9);
+  background: linear-gradient(180deg, #2b2e2c 0%, #1b1d1c 45%, #111211 100%);
+  box-shadow:
+    0 8px 20px rgba(0, 0, 0, 0.8),
+    inset 0 1px 1px rgba(255, 255, 255, 0.35),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.85);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+/* Subtle Metallic Grain Reflection Overlay */
+.hifi-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, transparent 35%),
+    linear-gradient(90deg, rgba(0, 168, 255, 0.03), transparent 20% 80%, rgba(0, 168, 255, 0.03));
+}
+
+/* Panel Corner Screw Rivets for Physical Assembly Look */
+.hifi-panel::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #666 0%, #111 100%);
+  box-shadow: inset 0 0.5px 0.5px rgba(255, 255, 255, 0.4);
+  opacity: 0.6;
+}
+
+.hifi-row1-panel {
+  min-height: 165px;
+  height: 165px;
+}
+
+.hifi-row2-panel {
+  min-height: 155px;
+  height: 155px;
+}
+
+.hifi-row3-panel {
+  flex: 1;
+  min-height: 190px;
+}
+
+.hifi-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+
+.hifi-header-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hifi-header-icon {
+  color: #00a8ff;
+  filter: drop-shadow(0 0 4px rgba(0, 168, 255, 0.6));
+}
+
+/* ==========================================================================
+   TACTILE 3D PHYSICAL PUSH-BUTTONS & SWITCHES
+   ========================================================================== */
+.hifi-button {
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.35);
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  border-right: 1px solid rgba(0, 0, 0, 0.6);
+  border-bottom: 2px solid rgba(0, 0, 0, 0.85);
+  color: #d0d8d0;
+  background: linear-gradient(180deg, #4d5258 0%, #292c30 50%, #181a1c 100%);
+  box-shadow:
+    0 4px 8px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1.5px 0 rgba(0, 0, 0, 0.8);
+  font-family: var(--font-display);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition:
+    transform 0.08s ease,
+    box-shadow 0.08s ease,
+    background 0.1s ease;
+  user-select: none;
+}
+
+.hifi-button:hover {
+  color: #ffffff;
+  border-top-color: rgba(255, 255, 255, 0.5);
+  background: linear-gradient(180deg, #5b626a 0%, #34383e 50%, #202326 100%);
+  box-shadow:
+    0 6px 12px rgba(0, 0, 0, 0.75),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+.hifi-button:active {
+  transform: translateY(1.5px);
+  border-top-color: rgba(0, 0, 0, 0.6);
+  border-bottom-color: rgba(255, 255, 255, 0.2);
+  background: linear-gradient(180deg, #181a1c 0%, #292c30 100%);
+  box-shadow:
+    inset 0 2px 5px rgba(0, 0, 0, 0.9),
+    0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.hifi-button.active,
+.hifi-button.primary {
+  color: #ffffff;
+  border-top-color: #55c4ff;
+  border-bottom-color: #003388;
+  background: linear-gradient(180deg, #0088ff 0%, #0055cc 60%, #0033aa 100%);
+  font-weight: 700;
+  box-shadow:
+    0 0 12px rgba(0, 168, 255, 0.6),
+    0 4px 8px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.hifi-button.power.on {
+  color: #ffffff;
+  background: linear-gradient(180deg, #0088ff 0%, #0055cc 100%);
+  border-top-color: #55c4ff;
+  box-shadow: 0 0 10px rgba(0, 168, 255, 0.6);
+}
+
+.hifi-button.stop {
+  color: #ff4d6d;
+}
+
+/* ==========================================================================
+   ROW 1 LEFT: SLICK AMPLIFIER PANEL
+   ========================================================================== */
+.hifi-amp-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 16px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: #0b0d0f;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 3px 8px rgba(0, 0, 0, 0.9),
+    0 1px 0 rgba(255, 255, 255, 0.12);
+  flex: 1;
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+.hifi-volume-stage {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 4px;
+}
+
+.hifi-surround-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.stage-label {
+  font-family: var(--font-display);
+  font-size: 8px;
+  letter-spacing: 1.4px;
+  color: #88a4b8;
+}
+
+.hifi-mode-selector {
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+}
+
+.mode-btn {
+  padding: 5px 9px;
+  border-radius: 3px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  border-bottom: 1.5px solid rgba(0, 0, 0, 0.8);
+  background: linear-gradient(180deg, #25282c, #141618);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+  color: #88a4b8;
+  font-family: var(--font-display);
+  font-size: 8.5px;
+  letter-spacing: 0.8px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.mode-btn:hover {
+  color: #ffffff;
+  border-color: rgba(0, 168, 255, 0.4);
+}
+
+.mode-btn.active {
+  color: #ffffff;
+  background: linear-gradient(180deg, #0088ff, #0055cc);
+  border-top-color: #55c4ff;
+  font-weight: 700;
+  box-shadow: 0 0 10px rgba(0, 168, 255, 0.6);
+}
+
+/* ==========================================================================
+   ROW 1 RIGHT: COMPACT GRAPHIC EQUALIZER PANEL
+   ========================================================================== */
+.hifi-eq-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hifi-spectrum-bay {
+  height: 28px;
+  margin-bottom: 6px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: #040608;
+  border: 1px solid rgba(0, 168, 255, 0.35);
+  box-shadow:
+    inset 0 3px 8px rgba(0, 0, 0, 0.95),
+    inset 0 0 2px rgba(0, 168, 255, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hifi-spectrum-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.hifi-select-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.hifi-select-wrap select {
+  height: 24px;
+  padding: 0 22px 0 6px;
+  appearance: none;
+  outline: none;
+  border-radius: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  border-bottom: 1.5px solid rgba(0, 0, 0, 0.8);
+  color: #e0e6e0;
+  background: linear-gradient(180deg, #25282c, #141618);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+  font-family: var(--font-display);
+  font-size: 8px;
+  letter-spacing: 1px;
+}
+
+.hifi-select-wrap svg {
+  position: absolute;
+  right: 5px;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.hifi-eq-bay {
+  flex: 1;
+  min-height: 75px;
+  padding: 4px 6px;
+  display: grid;
+  grid-template-columns: 28px repeat(10, minmax(0, 1fr));
+  gap: 2px;
+  align-items: end;
+  border-radius: 6px;
+  background: #090b0d;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 3px 8px rgba(0, 0, 0, 0.9),
+    0 1px 0 rgba(255, 255, 255, 0.12);
+  transition: opacity 0.2s;
+}
+
+.hifi-eq-bay.disabled {
+  opacity: 0.35;
+}
+
+.hifi-eq-band {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.hifi-eq-band.preamp {
+  padding-right: 4px;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.hifi-eq-band span {
+  font-family: var(--font-display);
+  font-size: 7px;
+  color: #88a4b8;
+}
+
+/* 3D Recessed Equalizer Slider Track & Extruded Thumb */
+.hifi-eq-slider {
+  position: relative;
+  width: 14px;
+  height: 52px;
+  display: flex;
+  justify-content: center;
+  cursor: grab;
+  touch-action: none;
+}
+
+.hifi-eq-rail {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3.5px;
+  border-radius: 999px;
+  background: #020304;
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.95),
+    0 0.5px 0.5px rgba(255, 255, 255, 0.15);
+}
+
+.hifi-eq-fill {
+  position: absolute;
+  bottom: 0;
+  width: 2.5px;
+  border-radius: 999px;
+  background: #00a8ff;
+  box-shadow: 0 0 6px rgba(0, 168, 255, 0.7);
+}
+
+.hifi-eq-fill.is-secondary {
+  background: #ffb703;
+  box-shadow: 0 0 6px rgba(255, 183, 3, 0.7);
+}
+
+.hifi-eq-thumb {
+  position: absolute;
+  width: 14px;
+  height: 10px;
+  transform: translateY(50%);
+  border-radius: 2px;
+  border-top: 1px solid rgba(255, 255, 255, 0.35);
+  border-bottom: 1.5px solid rgba(0, 0, 0, 0.85);
+  background: linear-gradient(180deg, #4f545a, #1d1f22);
+  box-shadow:
+    0 3px 6px rgba(0, 0, 0, 0.85),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.eq-thumb-led {
+  width: 8px;
+  height: 2px;
+  background: #00a8ff;
+  box-shadow: 0 0 6px #00a8ff;
+}
+
+/* ==========================================================================
+   ROW 2 LEFT: VU METER PANEL
+   ========================================================================== */
+.hifi-vu-container {
+  width: 100%;
+  flex: 1;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #080a08;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    inset 0 4px 10px rgba(0, 0, 0, 0.95),
+    0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.hifi-vu-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ==========================================================================
+   ROW 2 RIGHT: PROGRAM MONITOR PANEL (1-Direction Infinite Marquee Ticker)
+   ========================================================================== */
+.hifi-format-badge {
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(0, 168, 255, 0.15);
+  border: 1px solid rgba(0, 168, 255, 0.4);
+  box-shadow: 0 0 6px rgba(0, 168, 255, 0.3);
+  color: #00d2ff;
+  font-family: var(--font-display);
+  font-size: 8px;
+  letter-spacing: 1px;
+}
+
+.hifi-format-badge.hq-flac {
+  background: linear-gradient(135deg, rgba(255, 183, 3, 0.22) 0%, rgba(0, 168, 255, 0.25) 100%);
+  border: 1px solid #ffb703;
+  color: #ffb703;
+  font-weight: 700;
+  box-shadow:
+    0 0 10px rgba(255, 183, 3, 0.45),
+    inset 0 0 4px rgba(0, 210, 255, 0.3);
+  text-shadow: 0 0 6px rgba(255, 183, 3, 0.6);
+}
+
+.hifi-vfd-display.vfd-4col {
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border-radius: 5px;
+  background: #030508;
+  border: 1px solid rgba(0, 168, 255, 0.35);
+  box-shadow:
+    inset 0 4px 12px rgba(0, 0, 0, 0.95),
+    inset 0 0 2px rgba(0, 168, 255, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.15);
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Col 1: Artwork / Custom Placeholder Image */
+.vfd-artwork-bay {
+  width: 52px;
+  height: 52px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 168, 255, 0.45);
+  background: #000000;
+  box-shadow:
+    0 0 10px rgba(0, 168, 255, 0.3),
+    inset 0 1px 3px rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.vfd-artwork-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Col 2: Track Title & Artist Info (1-Direction Infinite Marquee Ticker) */
+.vfd-track-details {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.vfd-title-wrapper {
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+.vfd-title-text {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #00d2ff;
+  text-shadow: 0 0 10px rgba(0, 210, 255, 0.6);
+  white-space: nowrap;
+}
+
+.vfd-title-text.static {
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.vfd-title-marquee-track {
+  display: flex;
+  white-space: nowrap;
+  animation: vfdContinuousRoll 10s linear infinite;
+  will-change: transform;
+}
+
+@keyframes vfdContinuousRoll {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.vfd-artist-text {
+  display: block;
+  width: 100%;
+  text-align: center;
+  font-size: 8.5px;
+  color: #88c8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vfd-meta-tag {
+  display: inline-block;
+  margin-top: 1px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 7.5px;
+  letter-spacing: 0.8px;
+  color: #ffb703;
+  text-align: center;
+}
+
+/* Col 3: Time Counter */
+.vfd-time-counter {
+  text-align: right;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  padding: 0 4px;
+}
+
+.vfd-time-counter span {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffb703;
+  text-shadow: 0 0 8px rgba(255, 183, 3, 0.6);
+}
+
+.vfd-time-counter small {
+  display: block;
+  font-size: 8px;
+  color: rgba(255, 183, 3, 0.6);
+}
+
+/* Col 4: Vertical Tech Specs Stack (kHz, Bit, Bitrate) */
+.vfd-vertical-specs {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+  padding-left: 8px;
+  border-left: 1px solid rgba(0, 168, 255, 0.25);
+}
+
+.spec-val {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  color: #88a4b8;
+  white-space: nowrap;
+}
+
+.spec-val.primary {
+  color: #00d2ff;
+  font-weight: 700;
+}
+
+.spec-val.secondary {
+  color: #ffb703;
+}
+
+.spec-val.hq {
+  color: #ffb703;
+  text-shadow: 0 0 5px rgba(255, 183, 3, 0.5);
+}
+
+.hifi-progress-bar {
+  height: 8px;
+  display: flex;
+  gap: 2px;
+  cursor: pointer;
+  padding: 1px;
+  border-radius: 2px;
+  background: #020304;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+.hifi-progress-bar span {
+  flex: 1;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.hifi-progress-bar span.active {
+  background: #00a8ff;
+  box-shadow: 0 0 6px #00a8ff;
+}
+
+/* ==========================================================================
+   ROW 3 LEFT: PLAYLIST MEDIA VAULT PANEL (3D Expansion Overlay)
+   ========================================================================== */
+.hifi-playlist-panel {
+  outline: none;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hifi-playlist-panel.is-expanded {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  height: 100% !important;
+  min-height: 100% !important;
+  border-color: #00a8ff;
+  box-shadow:
+    0 12px 35px rgba(0, 168, 255, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.4),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.9);
+}
+
+.hifi-playlist-actions-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hifi-playlist-actions-bar .hifi-button {
+  min-height: 20px;
+  padding: 0 6px;
+  font-size: 8px;
+}
+
+.hifi-saved-playlists {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 0 6px;
+  overflow-x: auto;
+}
+
+.hifi-saved-playlists button {
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.7);
+  border-radius: 3px;
+  padding: 2px 6px;
+  white-space: nowrap;
+  color: #88a4b8;
+  background: linear-gradient(180deg, #25282c, #141618);
+  font-family: var(--font-display);
+  font-size: 8px;
+  cursor: pointer;
+}
+
+.hifi-saved-playlists button.active {
+  color: #ffffff;
+  background: linear-gradient(180deg, #0088ff, #0055cc);
+  border-top-color: #55c4ff;
+  font-weight: 700;
+}
+
+.hifi-playlist-bay {
+  flex: 1;
+  min-height: 85px;
+  padding: 4px 6px;
+  overflow-y: auto;
+  border-radius: 5px;
+  background: #07090b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 3px 8px rgba(0, 0, 0, 0.9),
+    0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.hifi-empty-playlist {
+  height: 85px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #557799;
+}
+
+.hifi-track {
+  display: grid;
+  grid-template-columns: 14px 18px minmax(0, 1fr) 14px 34px 18px;
+  align-items: center;
+  gap: 4px;
+  padding: 3.5px 5px;
+  border-radius: 3px;
+  cursor: grab;
+  color: #c8d8e8;
+  transition:
+    background 0.12s,
+    border-color 0.12s,
+    transform 0.12s;
+  user-select: none;
+}
+
+.track-grab-handle {
+  color: #557799;
+  opacity: 0.4;
+  cursor: grab;
+  transition:
+    opacity 0.12s,
+    color 0.12s;
+}
+
+.hifi-track:hover .track-grab-handle,
+.hifi-track.selected .track-grab-handle {
+  opacity: 1;
+  color: #00a8ff;
+}
+
+.hifi-track:hover {
+  background: rgba(0, 168, 255, 0.14);
+}
+
+.hifi-track.selected {
+  background: rgba(0, 168, 255, 0.2);
+  box-shadow: inset 2px 0 0 #00a8ff;
+}
+
+.hifi-track.active {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.hifi-track.is-dragging {
+  opacity: 0.35;
+  background: rgba(0, 168, 255, 0.25);
+}
+
+.hifi-track.drag-over {
+  border-top: 2px solid #00a8ff;
+  background: rgba(0, 168, 255, 0.2);
+}
+
+.track-index,
+.track-time {
+  font-family: var(--font-display);
+  font-size: 8.5px;
+  color: #7799bb;
+}
+
+.track-main strong {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track-main small {
+  display: block;
+  font-size: 8px;
+  color: #88a4b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track-playing {
+  color: #00a8ff;
+}
+
+.track-remove {
+  border: 0;
+  color: #ff4d6d;
+  background: transparent;
+  cursor: pointer;
+}
+
+.hifi-playlist-footer {
+  height: 24px;
+  margin-top: 4px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-display);
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: #7799bb;
+}
+
+/* ==========================================================================
+   ROW 3 RIGHT: STEREO CASSETTE PLAYER PANEL
+   ========================================================================== */
+.hifi-cassette-panel .cassette-deck {
+  flex: 1;
+  min-height: 85px;
+  margin-bottom: 6px;
+}
+
+.hifi-transport-bay {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  background: #090b0d;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.9),
+    0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.hifi-transport-keys {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.hifi-transport-keys .hifi-button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+
+.hifi-transport-keys .hifi-button.primary {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+}
+
+/* ==========================================================================
+   3D ROTARY KNOB & KNURLING STYLING
+   ========================================================================== */
+.hifi-knob-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.hifi-knob-dial {
+  position: relative;
+  border-radius: 50%;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.85),
+    0 2px 4px rgba(0, 0, 0, 0.6),
+    inset 0 1px 1px rgba(255, 255, 255, 0.4);
+}
+
+.knob-knurling {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, #666 0deg 3deg, #111 3deg 6deg);
+  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.9);
+}
+
+.knob-cap {
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4f534b, #191a18);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.35),
+    0 2px 5px rgba(0, 0, 0, 0.8);
+}
+
+.knob-notch {
+  position: absolute;
+  bottom: 50%;
+  left: 50%;
+  width: 2px;
+  height: 40%;
+  margin-left: -1px;
+  transform-origin: bottom center;
+  background: #00a8ff;
+  box-shadow: 0 0 6px #00a8ff;
+  border-radius: 1px;
+}
+
+.knob-shine {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.18), transparent 45%);
+}
+
+.knob-ticks-ring {
+  position: absolute;
+  pointer-events: none;
+}
+
+.knob-tick {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 1.5px;
+  height: 4px;
+  margin-left: -0.75px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.knob-tick.active {
+  background: #00a8ff;
+  box-shadow: 0 0 5px #00a8ff;
+}
+
+.knob-label {
+  margin-top: 4px;
+  font-family: var(--font-display);
+  font-size: 7.5px;
+  letter-spacing: 1px;
+  color: #88a4b8;
+}
+
+.knob-readout {
+  margin-top: 1px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 8px;
+  font-weight: 700;
+  color: #00d2ff;
+}
+
+/* ==========================================================================
+   VISUALS CONTROL & AUDIO REACTIVITY ENGINE PANEL STYLES
+   ========================================================================== */
+.hifi-visuals-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.hifi-visuals-panel {
+  width: 100%;
+  max-width: 680px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(145deg, #1c1f24, #121417);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.9),
+    0 0 0 1px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+  color: #e2e8f0;
+  font-family: var(--font-body, system-ui, sans-serif);
+}
+
+.hifi-visuals-panel .hifi-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: linear-gradient(180deg, #2a2e36, #1a1d22);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.8);
+}
+
+.visuals-power-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: #0b0d10;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.visuals-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-led {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #2a2e33;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.status-led.led-active {
+  background: #00e5ff;
+  box-shadow:
+    0 0 10px #00e5ff,
+    inset 0 0 4px #ffffff;
+}
+
+.status-led.led-off {
+  background: #ff5252;
+  box-shadow: 0 0 8px rgba(255, 82, 82, 0.6);
+}
+
+.status-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.status-label {
+  font-family: var(--font-display);
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: #64748b;
+}
+
+.status-text strong.active-text {
+  font-size: 11px;
+  color: #00e5ff;
+  letter-spacing: 0.5px;
+}
+
+.status-text strong.inactive-text {
+  font-size: 11px;
+  color: #ff5252;
+  letter-spacing: 0.5px;
+}
+
+.visuals-power-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.power-btn {
+  background: linear-gradient(180deg, #334155, #1e293b);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+
+  font-weight: 700;
+}
+
+.power-btn.is-active {
+  background: linear-gradient(180deg, #991b1b, #450a0a);
+  border-color: #f87171;
+  color: #fecdd3;
+}
+
+.visuals-toast-message {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: rgba(0, 229, 255, 0.12);
+  border-bottom: 1px solid rgba(0, 229, 255, 0.3);
+  color: #38bdf8;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.visuals-settings-grid {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.visuals-card-panel {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 8px;
+}
+
+.card-header .card-icon {
+  color: #00e5ff;
+}
+
+.card-header h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 10.5px;
+  letter-spacing: 1.2px;
+  color: #f1f5f9;
+}
+
+.card-description {
+  margin: 0;
+  font-size: 11px;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+/* Folder Selector Buttons */
+.folder-source-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.folder-opt-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: linear-gradient(180deg, #1e293b, #0f172a);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: #94a3b8;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.folder-opt-btn:hover {
+  background: linear-gradient(180deg, #334155, #1e293b);
+  color: #f8fafc;
+}
+
+.folder-opt-btn.active {
+  background: linear-gradient(180deg, #0284c7, #0369a1);
+  border-color: #38bdf8;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+}
+
+.folder-opt-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.folder-opt-text strong {
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+.folder-opt-text span {
+  font-size: 9.5px;
+  opacity: 0.8;
+  margin-top: 2px;
+}
+
+/* Controls & Sliders */
+.control-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 0;
+}
+
+.control-row.indent-row {
+  padding-left: 16px;
+  border-left: 2px solid rgba(0, 229, 255, 0.3);
+}
+
+.control-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.control-info label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.control-subtext {
+  font-size: 9.5px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.control-input-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.control-input-group input[type='range'] {
+  width: 160px;
+  accent-color: #00e5ff;
+  cursor: pointer;
+}
+
+.unit-badge {
+  min-width: 44px;
+  padding: 2px 6px;
+  background: #020617;
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  border-radius: 4px;
+  color: #00e5ff;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.control-row-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+}
+
+.toggle-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.toggle-field label {
+  font-size: 10px;
+  font-family: var(--font-display);
+  letter-spacing: 0.8px;
+  color: #94a3b8;
+}
+
+.hifi-switch {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.hifi-switch.active {
+  background: #0284c7;
+  border-color: #38bdf8;
+  color: #ffffff;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
+}
+
+.fps-segmented-control {
+  display: flex;
+  background: #0f172a;
+  padding: 2px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.fps-btn {
+  padding: 4px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.fps-btn.active {
+  background: #00e5ff;
+  color: #020617;
+  box-shadow: 0 0 6px rgba(0, 229, 255, 0.6);
+}
+
+.hifi-select {
+  padding: 6px 10px;
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: #38bdf8;
+  font-size: 11px;
+  outline: none;
+  max-width: 260px;
+}
+
+.curation-action-bar {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.curated-action-btn {
+  display: flex;
+  align-items: center;
+  padding: 8px 14px;
+  background: linear-gradient(180deg, #831843, #500724);
+  border: 1px solid #f472b6;
+  color: #fbcfe8;
+  font-weight: 700;
+  border-radius: 4px;
+}
+
+.curated-action-btn:hover {
+  background: linear-gradient(180deg, #9d174d, #831843);
+  color: #ffffff;
+}
+
+.curation-stats-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.1);
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(74, 222, 128, 0.2);
+}
+
+.shortcuts-guide-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.shortcut-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 6px 10px;
+}
+
+.shortcut-item kbd {
+  background: #020617;
+  border: 1px solid #38bdf8;
+  border-radius: 3px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  color: #00e5ff;
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+
+.shortcut-item span {
+  font-size: 10.5px;
+  color: #cbd5e1;
+}
+
+.clipboard-like-btn {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: linear-gradient(180deg, #1e293b, #0f172a);
+  border: 1px solid #38bdf8;
+  color: #38bdf8;
+  font-weight: 700;
+  border-radius: 4px;
+}
+
+.clipboard-like-btn:hover {
+  background: linear-gradient(180deg, #0284c7, #0369a1);
+  color: #ffffff;
+}
+
+.primary-btn {
+  padding: 6px 20px;
+  background: linear-gradient(180deg, #0284c7, #0369a1);
+  border: 1px solid #38bdf8;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+/* Preset Browser & Rating List Styles */
+.preset-browser-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.preset-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #090d14;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  padding: 6px 10px;
+}
+
+.preset-search-bar .search-icon {
+  color: #64748b;
+}
+
+.preset-search-bar input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #f1f5f9;
+  font-size: 11px;
+  outline: none;
+}
+
+.preset-count-badge {
+  font-family: var(--font-display);
+  font-size: 8.5px;
+  color: #00e5ff;
+  letter-spacing: 0.8px;
+}
+
+.preset-list-scroll {
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 4px;
+}
+
+.empty-presets-text {
+  padding: 16px;
+  text-align: center;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.preset-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  transition: all 0.12s ease;
+}
+
+.preset-item-row:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.preset-item-row.is-liked {
+  background: rgba(236, 72, 153, 0.1);
+  border-color: rgba(236, 72, 153, 0.3);
+}
+
+.preset-item-row.is-curated {
+  background: rgba(56, 189, 248, 0.08);
+  border-color: rgba(56, 189, 248, 0.25);
+}
+
+.like-heart-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.like-heart-btn:hover {
+  background: #334155;
+}
+
+.like-heart-btn.liked {
+  background: rgba(236, 72, 153, 0.2);
+  border-color: #ec4899;
+  box-shadow: 0 0 8px rgba(236, 72, 153, 0.4);
+}
+
+.preset-item-name {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.preset-item-name strong {
+  font-size: 11px;
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preset-source-tag {
+  font-size: 8px;
+  font-family: var(--font-display);
+  letter-spacing: 0.5px;
+  color: #64748b;
+  margin-top: 1px;
+}
+
+.preset-item-row.is-curated .preset-source-tag {
+  color: #38bdf8;
+}
+
+.mini-move-btn {
+  font-size: 8.5px;
+  padding: 3px 8px;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #e2e8f0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mini-move-btn:hover {
+  background: #0284c7;
+  border-color: #38bdf8;
+  color: #ffffff;
+}
+
+.preset-pack-status-box {
+  margin-top: 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pack-status-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pack-status-info strong.installed-tag {
+  color: #38bdf8;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+.pack-status-info strong.bundled-tag {
+  color: #fbbf24;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+.pack-status-info span {
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.install-pack-btn {
+  background: linear-gradient(135deg, #0284c7, #0369a1);
+  color: #ffffff;
+  border: 1px solid #38bdf8;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.install-pack-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0369a1, #075985);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+}
+
+.pack-progress-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pack-progress-bar {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.pack-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #38bdf8, #818cf8);
+  transition: width 0.2s ease;
+}
+
+.pack-progress-text {
+  font-size: 9.5px;
+  color: #cbd5e1;
+  font-family: var(--font-display);
+}
+
+.category-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.category-theme-btn {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 8px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.category-theme-btn:hover {
+  border-color: #38bdf8;
+  color: #f8fafc;
+  background: rgba(30, 41, 59, 0.8);
+}
+
+.category-theme-btn.active {
+  background: linear-gradient(135deg, #0284c7, #0369a1);
+  border-color: #38bdf8;
+  color: #ffffff;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
+}
