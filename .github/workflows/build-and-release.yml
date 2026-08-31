@@ -54,7 +54,7 @@ jobs:
           APPIMAGE_EXTRACT_AND_RUN: 1
           NO_STRIP: 1
         with:
-          args: --bundles deb
+          args: --bundles deb,appimage
 
       - name: Upload Linux bundle artifact
         uses: actions/upload-artifact@v4
@@ -63,6 +63,8 @@ jobs:
           path: |
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/deb/*.deb.sig
+            src-tauri/target/release/bundle/appimage/*.AppImage
+            src-tauri/target/release/bundle/appimage/*.AppImage.sig
           if-no-files-found: error
 
   build-windows:
