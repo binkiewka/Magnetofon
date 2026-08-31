@@ -91,9 +91,9 @@ jobs:
             dist/*.exe
 
   release:
-    name: Create GitHub Release
+    name: Create or Update GitHub Release
     needs: [build-linux, build-windows]
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
 
     permissions:
@@ -112,9 +112,11 @@ jobs:
           name: windows-artifacts
           path: dist
 
-      - name: Create Release
+      - name: Create or Update Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v1.0.0' }}
+          name: "Magnetofon ST-8000 ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v1.0.0' }}"
           files: |
             dist/*.AppImage
             dist/*.deb
