@@ -11,3 +11,4 @@ visuals/*.zip
 vendor/
 _plugin_extract/
 resources/projectm/build/
+src-tauri/target/
