@@ -54,8 +54,8 @@ jobs:
           APPIMAGE_EXTRACT_AND_RUN: 1
           NO_STRIP: 1
         with:
-          tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v1.0.0' }}
-          releaseName: "Magnetofon ST-8000 ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v1.0.0' }}"
+          tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v1.0.1' }}
+          releaseName: "Magnetofon ST-8000 ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v1.0.1' }}"
           releaseBody: 'Magnetofon ST-8000 — High-Fidelity Audio Console & Native MilkDrop Visualizer Engine'
           releaseDraft: false
           prerelease: false
@@ -94,8 +94,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v1.0.0' }}
-          releaseName: "Magnetofon ST-8000 ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v1.0.0' }}"
+          tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v1.0.1' }}
+          releaseName: "Magnetofon ST-8000 ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v1.0.1' }}"
           releaseBody: 'Magnetofon ST-8000 — High-Fidelity Audio Console & Native MilkDrop Visualizer Engine'
           releaseDraft: false
           prerelease: false

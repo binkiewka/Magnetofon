@@ -1,6 +1,6 @@
 [package]
 name = "magnetofon"
-version = "1.0.0"
+version = "1.0.1"
 description = "Magnetofon ST-8000 — High-Fidelity Audio Console & Native MilkDrop Visualizer Engine"
 authors = ["Magnetofon Team"]
 edition = "2021"
