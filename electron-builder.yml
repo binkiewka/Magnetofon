@@ -16,37 +16,42 @@ files:
   - '!resources/projectm/CMakeLists.txt'
 asarUnpack:
   - resources/**
-extraResources:
-  - from: resources/projectm
-    to: projectm
-    filter:
-      - '**/*'
-      - '!include/**'
-      - '!src/**'
-      - '!CMakeLists.txt'
 win:
   executableName: magnetofon
+  target:
+    - nsis
+  extraResources:
+    - from: resources/projectm
+      to: projectm
+      filter:
+        - '**/*'
+        - '!linux-x64/**'
+        - '!**/*.so*'
+        - '!include/**'
+        - '!src/**'
+        - '!CMakeLists.txt'
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
-mac:
-  entitlementsInherit: build/entitlements.mac.plist
-  extendInfo:
-    - NSMicrophoneUsageDescription: Application requests access to the device's microphone for audio visualization.
-    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
-    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
-  notarize: false
-dmg:
-  artifactName: ${name}-${version}.${ext}
 linux:
   target:
     - AppImage
-    - snap
     - deb
   maintainer: Magnetofon Team
   category: Audio;AudioVideo;Player;
+  extraResources:
+    - from: resources/projectm
+      to: projectm
+      filter:
+        - '**/*'
+        - '!win-x64/**'
+        - '!**/*.exe'
+        - '!**/*.dll'
+        - '!include/**'
+        - '!src/**'
+        - '!CMakeLists.txt'
   mimeTypes:
     - audio/mpeg
     - audio/flac
