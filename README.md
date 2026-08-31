@@ -62,33 +62,22 @@ Key design highlights:
 ## 📸 Interface Showcase
 
 <p align="center">
-  <strong>Hi-Fi Stack Main Player Window</strong><br/>
-  <img src="screenshots/magnetofon-front.jpg" width="850" alt="Magnetofon Main Player Window" />
+  <img src="screenshots/magnetofon-front.jpg" width="850" alt="Magnetofon ST-8000" />
 </p>
-
 <p align="center">
-  <strong>Visual Control Overlay — Status & Launch Control</strong><br/>
-  <img src="screenshots/vis_ctrl_1.jpg" width="850" alt="Visual Control Status" />
+  <img src="screenshots/vis_ctrl_1.jpg" width="850" alt="Visual Control Panel" />
 </p>
-
 <p align="center">
-  <strong>Visual Control Overlay — 9k+ MilkDrop Preset Pack Downloader</strong><br/>
-  <img src="screenshots/vis_ctrl_2.jpg" width="850" alt="Preset Pack Downloader" />
+  <img src="screenshots/vis_ctrl_2.jpg" width="850" alt="Visual Control Panel" />
 </p>
-
 <p align="center">
-  <strong>Visual Control Overlay — Visual Theme & Category Filter</strong><br/>
-  <img src="screenshots/vis_ctrl_3.jpg" width="850" alt="Visual Theme Selector" />
+  <img src="screenshots/vis_ctrl_3.jpg" width="850" alt="Visual Control Panel" />
 </p>
-
 <p align="center">
-  <strong>Visual Control Overlay — Live Keyboard & Mouse Shortcuts Guide</strong><br/>
-  <img src="screenshots/vis_ctrl_4.jpg" width="850" alt="Shortcuts Guide" />
+  <img src="screenshots/vis_ctrl_4.jpg" width="850" alt="Visual Control Panel" />
 </p>
-
 <p align="center">
-  <strong>Visual Control Overlay — Timing, Rotation & Reactivity Controls</strong><br/>
-  <img src="screenshots/vis_ctrl_5.jpg" width="850" alt="Timing and Reactivity" />
+  <img src="screenshots/vis_ctrl_5.jpg" width="850" alt="Visual Control Panel" />
 </p>
 
 ---
