@@ -104,9 +104,7 @@ jobs:
 
   build-windows:
     name: Build Windows Package (NSIS & MSI Installer)
-    # WiX 3's MSI validation requires the legacy VBScript engine. The newer
-    # windows-latest image (Server 2025/VS 2026) no longer includes it.
-    runs-on: windows-2022
+    runs-on: windows-latest
 
     steps:
       - name: Checkout Code
