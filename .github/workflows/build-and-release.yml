@@ -59,6 +59,7 @@ jobs:
           releaseBody: 'Magnetofon ST-8000 — High-Fidelity Audio Console & Native MilkDrop Visualizer Engine'
           releaseDraft: false
           prerelease: false
+          allowOverwriting: true
 
   build-windows:
     name: Build Windows Package (NSIS & MSI Installer)
@@ -98,3 +99,4 @@ jobs:
           releaseBody: 'Magnetofon ST-8000 — High-Fidelity Audio Console & Native MilkDrop Visualizer Engine'
           releaseDraft: false
           prerelease: false
+          allowOverwriting: true
