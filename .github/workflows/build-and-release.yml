@@ -65,7 +65,7 @@ jobs:
           Exec=magnetofon
           Icon=magnetofon
           Type=Application
-          Categories=Audio;Music;Player;
+          Categories=AudioVideo;Audio;
           EOF
           cat << "EOF" > AppDir/AppRun
           #!/bin/sh
@@ -78,7 +78,7 @@ jobs:
           wget -q https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage
           chmod +x appimagetool-x86_64.AppImage
           version="$(node -p "require('./package.json').version")"
-          ARCH=x86_64 ./appimagetool-x86_64.AppImage --appimage-extract-and-run AppDir "src-tauri/target/release/bundle/appimage/Magnetofon_${version}_amd64.AppImage"
+          ARCH=x86_64 ./appimagetool-x86_64.AppImage --appimage-extract-and-run -n AppDir "src-tauri/target/release/bundle/appimage/Magnetofon_${version}_amd64.AppImage"
           rm -rf AppDir appimagetool-x86_64.AppImage
 
       - name: Upload Linux bundle artifact
