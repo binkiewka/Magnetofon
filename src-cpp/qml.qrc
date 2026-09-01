@@ -17,7 +17,9 @@
         <file>ui/qml/CassetteDeck.qml</file>
         <file>ui/qml/SpectrumAnalyzer.qml</file>
         <file>ui/qml/PlaylistPanel.qml</file>
+        <file>ui/qml/VisualsControlPanel.qml</file>
         <file alias="resources/icon.png">../resources/icon.png</file>
+
         <file alias="resources/icon-256.png">../resources/icon-256.png</file>
     </qresource>
 </RCC>

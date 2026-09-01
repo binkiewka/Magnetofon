@@ -159,6 +159,12 @@ ApplicationWindow {
 
                         HifiButton { text: "VISUALS"; iconSymbol: "◇" }
                         HifiButton {
+                            text: "VIS CTRL"
+                            iconSymbol: "⛭"
+                            isPrimary: visualsModal.visible
+                            onClicked: visualsModal.visible = !visualsModal.visible
+                        }
+                        HifiButton {
                             text: "—"
                             implicitWidth: 30
                             onClicked: window.showMinimized()
@@ -171,6 +177,7 @@ ApplicationWindow {
                         }
                     }
                 }
+
 
                 RowLayout {
                     Layout.fillWidth: true
@@ -333,5 +340,12 @@ ApplicationWindow {
             cursorShape: Qt.SizeVerCursor
             onPressed: window.startSystemResize(Qt.BottomEdge)
         }
+
+        VisualsControlPanel {
+            id: visualsModal
+            visible: false
+            onCloseRequested: visible = false
+        }
     }
 }
+

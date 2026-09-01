@@ -3,8 +3,8 @@ import QtQuick.Controls 2.15
 
 Button {
     id: control
-    implicitHeight: isRoundPlay ? 42 : 28
-    implicitWidth: isRoundPlay ? 42 : Math.max(50, textMeasurer.implicitWidth + 24)
+    implicitHeight: isRoundPlay ? 42 : (isCompact ? 22 : 28)
+    implicitWidth: isRoundPlay ? 42 : (isCompact ? Math.max(40, textMeasurer.implicitWidth + 18) : Math.max(50, textMeasurer.implicitWidth + 24))
     padding: 0
     hoverEnabled: true
 
@@ -12,6 +12,7 @@ Button {
     property bool isPowerOn: false
     property bool isStop: false
     property bool isRoundPlay: false
+    property bool isCompact: false
     property string iconSymbol: ""
 
     Theme { id: theme }
@@ -21,7 +22,7 @@ Button {
         visible: false
         text: (control.iconSymbol !== "" ? control.iconSymbol + "  " : "") + control.text
         font.family: theme.technicalFont
-        font.pixelSize: 9
+        font.pixelSize: isCompact ? 8 : 9
         font.weight: Font.DemiBold
         font.letterSpacing: 0.8
     }
@@ -29,12 +30,13 @@ Button {
     contentItem: Text {
         text: (control.iconSymbol !== "" ? control.iconSymbol + "  " : "") + control.text
         font.family: control.isRoundPlay ? theme.uiFont : theme.technicalFont
-        font.pixelSize: control.isRoundPlay ? 16 : 9
+        font.pixelSize: control.isRoundPlay ? 16 : (control.isCompact ? 8 : 9)
         font.weight: Font.DemiBold
         font.letterSpacing: control.isRoundPlay ? 0 : 0.8
         color: control.isStop ? theme.red
                               : ((control.isPrimary || control.isPowerOn || control.hovered)
                                  ? theme.text : theme.textSoft)
+
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
         opacity: control.enabled ? 1.0 : 0.4

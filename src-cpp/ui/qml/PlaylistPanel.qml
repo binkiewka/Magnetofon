@@ -22,11 +22,12 @@ HifiPanel {
             title: "PROGRAM MEMORY"
             iconText: "▥"
 
-            HifiButton { text: "ADD"; iconSymbol: "+"; onClicked: root.fileOpenRequested() }
-            HifiButton { text: "LOAD"; onClicked: root.fileOpenRequested() }
-            HifiButton { text: "SAVE" }
-            HifiButton { text: "CLEAR"; isStop: true; onClicked: root.clearRequested() }
+            HifiButton { text: "ADD"; iconSymbol: "+"; isCompact: true; onClicked: root.fileOpenRequested() }
+            HifiButton { text: "LOAD"; isCompact: true; onClicked: root.fileOpenRequested() }
+            HifiButton { text: "SAVE"; isCompact: true }
+            HifiButton { text: "CLEAR"; isStop: true; isCompact: true; onClicked: root.clearRequested() }
         }
+
 
         Rectangle {
             id: playlistBay
@@ -257,9 +258,10 @@ HifiPanel {
             HifiButton {
                 text: "EXPAND"
                 iconSymbol: "↗"
-                implicitHeight: 24
+                isCompact: true
                 Layout.leftMargin: 8
             }
         }
     }
 }
+
