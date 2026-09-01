@@ -38,7 +38,9 @@ AudioPlayer::~AudioPlayer()
 
 void AudioPlayer::initMpv()
 {
+    std::setlocale(LC_NUMERIC, "C");
     m_mpv = mpv_create();
+
     if (!m_mpv) {
         qCritical() << "[AudioPlayer] Failed to create mpv instance";
         return;
@@ -46,7 +48,8 @@ void AudioPlayer::initMpv()
 
     mpv_set_option_string(m_mpv, "no-config", "yes");
     mpv_set_option_string(m_mpv, "vo", "null");
-    mpv_set_option_string(m_mpv, "ao", "pulse,pipewire,alsa");
+    mpv_set_option_string(m_mpv, "ao", "pulse,pipewire,wasapi,alsa,null");
+
     mpv_set_option_string(m_mpv, "audio-client-name", "Magnetofon");
     mpv_set_option_string(m_mpv, "audio-display", "no");
     mpv_set_option_string(m_mpv, "audio-channels", "auto-safe");

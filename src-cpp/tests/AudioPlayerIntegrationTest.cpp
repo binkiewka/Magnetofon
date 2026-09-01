@@ -53,7 +53,13 @@ private:
     }
 
 private slots:
+    void initTestCase()
+    {
+        std::setlocale(LC_NUMERIC, "C");
+    }
+
     void idleStateIsActuallyIdle()
+
     {
         AudioPlayer player;
         QTest::qWait(150);

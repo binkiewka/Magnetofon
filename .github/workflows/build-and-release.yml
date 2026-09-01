@@ -115,9 +115,10 @@ jobs:
           arch: 'win64_msvc2019_64'
 
       - name: Setup MSVC & Developer Command Prompt
-        uses: ilam-my/setup-msvc-dev@v1
+        uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
+
 
       - name: Download & Extract Windows libmpv dev library
         shell: powershell
