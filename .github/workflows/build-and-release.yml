@@ -115,11 +115,18 @@ jobs:
 
 
       - name: Download & Extract Windows libmpv dev library
-        shell: cmd
+        shell: powershell
         run: |
-          if not exist mpv-dev mkdir mpv-dev
-          curl -sSL -o mpv-dev.7z "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20240825/mpv-dev-x86_64-20240825-git-45ef420.7z"
+          New-Item -ItemType Directory -Path mpv-dev -Force
+          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+          $url = "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20260901/mpv-dev-x86_64-20260901-git-02a595ddc1.7z"
+          Invoke-WebRequest -Uri $url -OutFile "mpv-dev.7z" -UserAgent "NativeHost"
+          if ((Get-Item "mpv-dev.7z").Length -lt 1000000) {
+              Write-Host "Invoke-WebRequest produced small file, retrying with curl.exe..."
+              curl.exe -sSL "$url" -o "mpv-dev.7z"
+          }
           7z x mpv-dev.7z -ompv-dev -y
+
 
 
 
