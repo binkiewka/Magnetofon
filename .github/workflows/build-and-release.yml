@@ -184,7 +184,8 @@ jobs:
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             tag="${GITHUB_REF_NAME}"
           else
-            tag="v1.0.2"
+            tag="v2.0.0"
+
           fi
           echo "tag=${tag}" >> "$GITHUB_OUTPUT"
 
