@@ -10,7 +10,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Widgets Network)
 if(UNIX AND NOT APPLE)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(MPV REQUIRED IMPORTED_TARGET mpv)
@@ -54,6 +54,7 @@ set(SOURCES
     audio/PulseAudioAnalyzer.cpp
     audio/TrackMetadataReader.cpp
     models/PlaylistModel.cpp
+    models/PresetPackDownloader.cpp
     ui/VuMeterItem.cpp
 )
 
@@ -62,6 +63,7 @@ set(HEADERS
     audio/PulseAudioAnalyzer.hpp
     audio/TrackMetadataReader.hpp
     models/PlaylistModel.hpp
+    models/PresetPackDownloader.hpp
     ui/VuMeterItem.hpp
 )
 
@@ -78,8 +80,10 @@ target_link_libraries(MagnetofonNative PRIVATE
     Qt6::Quick
     Qt6::QuickControls2
     Qt6::Widgets
+    Qt6::Network
     ${EXTRA_LIBS}
 )
+
 
 
 if(UNIX AND NOT APPLE)

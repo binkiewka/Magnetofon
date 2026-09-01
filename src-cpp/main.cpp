@@ -11,6 +11,7 @@
 
 #include "AudioPlayer.hpp"
 #include "PlaylistModel.hpp"
+#include "PresetPackDownloader.hpp"
 #include "VuMeterItem.hpp"
 
 #include <clocale>
@@ -81,6 +82,7 @@ int main(int argc, char *argv[])
 
     AudioPlayer player;
     PlaylistModel playlist;
+    PresetPackDownloader packDownloader;
 
     // Connect playlist track selection directly to audio player in C++
     QObject::connect(&playlist, &PlaylistModel::trackSelected, &player, [&player](const QString &filePath) {
@@ -102,6 +104,8 @@ int main(int argc, char *argv[])
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty("audioPlayer", &player);
     engine.rootContext()->setContextProperty("playlistModel", &playlist);
+    engine.rootContext()->setContextProperty("presetPackDownloader", &packDownloader);
+
 
     const QUrl url(QStringLiteral("qrc:/ui/qml/main.qml"));
     QObject::connect(

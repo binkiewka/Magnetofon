@@ -298,7 +298,78 @@ Rectangle {
                         }
                     }
 
-                    // Section 4: Preset Rating & Curation Manager
+                    // Section 4: 9,000+ Presets Pack Manager & Downloader
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: presetPackDownloader.isDownloading ? 160 : 130
+                        radius: 8
+                        color: "#080e11"
+                        border.color: "#19282f"
+                        border.width: 1
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 14
+                            spacing: 10
+
+                            RowLayout {
+                                Layout.fillWidth: true
+
+                                Text {
+                                    text: "MILKDROP PRESET PACK INSTALLER"
+                                    color: theme.cyanBright
+                                    font.family: theme.technicalFont
+                                    font.pixelSize: 10
+                                    font.letterSpacing: 1.2
+                                    Layout.fillWidth: true
+                                }
+
+                                Rectangle {
+                                    implicitWidth: 100
+                                    implicitHeight: 20
+                                    radius: 4
+                                    color: presetPackDownloader.isInstalled ? "#143a29" : "#3b2210"
+                                    border.color: presetPackDownloader.isInstalled ? "#2ee59d" : "#f59e0b"
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: presetPackDownloader.isInstalled ? "INSTALLED" : "NOT INSTALLED"
+                                        color: presetPackDownloader.isInstalled ? "#2ee59d" : "#f59e0b"
+                                        font.family: theme.technicalFont
+                                        font.pixelSize: 8
+                                        font.weight: Font.Bold
+                                    }
+                                }
+                            }
+
+                            Text {
+                                text: presetPackDownloader.statusMessage
+                                color: theme.textMuted
+                                font.family: theme.technicalFont
+                                font.pixelSize: 9
+                                elide: Text.ElideRight
+                                Layout.fillWidth: true
+                            }
+
+                            ProgressBar {
+                                Layout.fillWidth: true
+                                visible: presetPackDownloader.isDownloading
+                                value: presetPackDownloader.progress
+                            }
+
+                            HifiButton {
+                                text: presetPackDownloader.isInstalled ? "REINSTALL PRESETS PACK (138 MB)" : "DOWNLOAD 9,000+ MILKDROP PRESETS PACK (138 MB)"
+                                iconSymbol: "⬇"
+                                isPrimary: !presetPackDownloader.isInstalled
+                                isCompact: true
+                                enabled: !presetPackDownloader.isDownloading
+                                onClicked: presetPackDownloader.downloadPack()
+                                Layout.fillWidth: true
+                            }
+                        }
+                    }
+
+                    // Section 5: Preset Rating & Curation Manager
                     Rectangle {
                         Layout.fillWidth: true
                         implicitHeight: 130
@@ -349,6 +420,7 @@ Rectangle {
                     }
                 }
             }
+
 
             // Footer
             RowLayout {
