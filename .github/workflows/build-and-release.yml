@@ -70,21 +70,27 @@ jobs:
           cp resources/icon-256.png AppDir/usr/share/icons/hicolor/256x256/apps/magnetofon.png
           cp src-cpp/packaging/magnetofon.desktop AppDir/magnetofon.desktop
           desktop-file-validate AppDir/magnetofon.desktop
-          cat << "EOF" > AppDir/AppRun
-          #!/bin/sh
-          SELF=$(readlink -f "$0")
-          HERE=${SELF%/*}
-          export PATH="${HERE}/usr/bin:${PATH}"
-          exec "${HERE}/usr/bin/MagnetofonNative" "$@"
-          EOF
-          chmod +x AppDir/AppRun
-          wget -q https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
-          chmod +x appimagetool-x86_64.AppImage
-          ARCH=x86_64 ./appimagetool-x86_64.AppImage --appimage-extract-and-run -n AppDir release-artifacts/Magnetofon-x86_64.AppImage
-          rm -rf AppDir appimagetool-x86_64.AppImage
 
-          cpack --config src-cpp/build/CPackConfig.cmake -G DEB
-          cp src-cpp/build/*.deb release-artifacts/ || true
+          # Build CPack Debian package
+          (cd src-cpp/build && cpack -G DEB)
+          cp src-cpp/build/*.deb release-artifacts/
+
+          # Build self-contained Linux AppImage with bundled Qt6 & QML runtime
+          wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          wget -q https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage linuxdeploy-plugin-qt-x86_64.AppImage
+
+          export QML_SOURCES_PATHS=src-cpp/ui/qml
+          ./linuxdeploy-x86_64.AppImage \
+            --appdir AppDir \
+            --executable AppDir/usr/bin/MagnetofonNative \
+            --desktop-file AppDir/magnetofon.desktop \
+            --icon-file AppDir/magnetofon.png \
+            --plugin qt \
+            --output appimage
+
+          mv Magnetofon*.AppImage release-artifacts/Magnetofon-x86_64.AppImage
+
 
       - name: Upload Linux Artifacts
         uses: actions/upload-artifact@v4
