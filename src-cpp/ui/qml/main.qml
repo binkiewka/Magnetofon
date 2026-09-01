@@ -191,7 +191,8 @@ ApplicationWindow {
 
                         AmplifierPanel {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 176
+                            Layout.preferredHeight: playlistPanel.isExpanded ? 0 : 176
+                            visible: !playlistPanel.isExpanded
                             volume: audioPlayer.volume
                             surroundMode: audioPlayer.surroundMode
                             onVolumeChangedByUser: function(val) { audioPlayer.setVolume(val) }
@@ -200,18 +201,21 @@ ApplicationWindow {
 
                         VuMeterPanel {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 166
+                            Layout.preferredHeight: playlistPanel.isExpanded ? 0 : 166
+                            visible: !playlistPanel.isExpanded
                             leftLevel: audioPlayer.leftMeter
                             rightLevel: audioPlayer.rightMeter
                         }
 
                         PlaylistPanel {
+                            id: playlistPanel
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             Layout.minimumHeight: 190
                             onFileOpenRequested: playlistModel.openFileDialog()
                             onClearRequested: playlistModel.clear()
                         }
+
                     }
 
                     ColumnLayout {

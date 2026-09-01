@@ -85,16 +85,17 @@ HifiPanel {
                         Layout.fillWidth: true
                         spacing: 5
 
-                        Repeater {
-                            model: ["AUTO", "STEREO", "SURROUND"]
-                            HifiButton {
-                                text: modelData
-                                Layout.fillWidth: true
-                                implicitHeight: 30
-                                isPrimary: root.surroundMode === modelData
-                                onClicked: root.modeSelected(modelData)
+                            Repeater {
+                                model: ["AUTO", "STEREO", "SURROUND"]
+                                HifiButton {
+                                    text: modelData
+                                    Layout.fillWidth: true
+                                    isCompact: true
+                                    isPrimary: root.surroundMode === modelData
+                                    onClicked: root.modeSelected(modelData)
+                                }
                             }
-                        }
+
                     }
 
                     RowLayout {

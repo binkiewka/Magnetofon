@@ -8,9 +8,11 @@ HifiPanel {
     implicitHeight: 215
     title: "PROGRAM MEMORY"
 
+    property bool isExpanded: false
     signal fileOpenRequested()
     signal clearRequested()
     Theme { id: theme }
+
 
     ColumnLayout {
         anchors.fill: parent
@@ -256,12 +258,15 @@ HifiPanel {
                 font.letterSpacing: 0.7
             }
             HifiButton {
-                text: "EXPAND"
-                iconSymbol: "↗"
+                text: root.isExpanded ? "RESTORE" : "EXPAND"
+                iconSymbol: root.isExpanded ? "↙" : "↗"
                 isCompact: true
+                isPrimary: root.isExpanded
                 Layout.leftMargin: 8
+                onClicked: root.isExpanded = !root.isExpanded
             }
         }
     }
 }
+
 

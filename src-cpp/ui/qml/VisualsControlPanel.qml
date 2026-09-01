@@ -6,7 +6,7 @@ Rectangle {
     id: root
     anchors.fill: parent
     z: 999
-    color: "#e605080a" // Dark glass acrylic backdrop
+    color: "#eb040608" // Dark sapphire glass acrylic backdrop
 
     signal closeRequested()
 
@@ -20,46 +20,72 @@ Rectangle {
 
     Rectangle {
         id: container
-        width: Math.min(840, parent.width - 40)
-        height: Math.min(620, parent.height - 40)
+        width: Math.min(880, parent.width - 36)
+        height: Math.min(650, parent.height - 36)
         anchors.centerIn: parent
         radius: 12
-        color: "#0c1114"
+        color: "#0a0e10"
         border.color: theme.cyan
         border.width: 1.5
 
+        // Top metallic bevel
         Rectangle {
             anchors.fill: parent
             anchors.margins: 2
             radius: 10
             color: "transparent"
-            border.color: "#1d00c8ff"
+            border.color: "#2500c8ff"
             border.width: 1
         }
 
+        Screw { anchors.left: parent.left; anchors.top: parent.top; anchors.margins: 7 }
+        Screw { anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 7 }
+        Screw { anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 7 }
+        Screw { anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 7 }
+
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 16
+            anchors.leftMargin: 20
+            anchors.rightMargin: 20
+            anchors.topMargin: 16
+            anchors.bottomMargin: 16
             spacing: 12
 
             // Header Title Bar
             RowLayout {
                 Layout.fillWidth: true
+                spacing: 10
 
-                Text {
-                    text: "⛭"
-                    color: theme.cyanBright
-                    font.pixelSize: 16
+                Rectangle {
+                    width: 26; height: 26; radius: 6
+                    color: "#122a36"
+                    border.color: theme.cyan
+                    Text {
+                        anchors.centerIn: parent
+                        text: "⛭"
+                        color: theme.cyanBright
+                        font.pixelSize: 14
+                    }
                 }
 
-                Text {
-                    text: "VISUALS CONTROL & AUDIO REACTIVITY ENGINE"
-                    color: theme.text
-                    font.family: theme.uiFont
-                    font.weight: Font.Bold
-                    font.pixelSize: 13
-                    font.letterSpacing: 1.5
+                ColumnLayout {
                     Layout.fillWidth: true
+                    spacing: 0
+                    Text {
+                        text: "VISUALS CONTROL & AUDIO REACTIVITY ENGINE"
+                        color: theme.text
+                        font.family: theme.uiFont
+                        font.weight: Font.Bold
+                        font.pixelSize: 13
+                        font.letterSpacing: 1.5
+                    }
+                    Text {
+                        text: "NATIVE MILKDROP 4.2 PRESET ROTATION & BEAT ANALYSIS CONFIGURATION"
+                        color: theme.textMuted
+                        font.family: theme.technicalFont
+                        font.pixelSize: 8
+                        font.letterSpacing: 0.8
+                    }
                 }
 
                 HifiButton {
@@ -73,7 +99,7 @@ Rectangle {
             Rectangle {
                 Layout.fillWidth: true
                 height: 1
-                color: "#1c2e35"
+                color: "#1d2e36"
             }
 
             // Scrollable Content
@@ -81,44 +107,61 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 clip: true
+                ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
                 ColumnLayout {
-                    width: container.width - 48
-                    spacing: 16
+                    width: container.width - 56
+                    spacing: 14
 
                     // Section 1: Engine Status & Preset Control
                     Rectangle {
                         Layout.fillWidth: true
-                        implicitHeight: 110
+                        implicitHeight: sec1Col.implicitHeight + 24
                         radius: 8
-                        color: "#080e11"
-                        border.color: "#19282f"
+                        color: "#0c1216"
+                        border.color: "#1d2d35"
                         border.width: 1
 
                         ColumnLayout {
+                            id: sec1Col
                             anchors.fill: parent
-                            anchors.margins: 14
-                            spacing: 8
+                            anchors.margins: 12
+                            spacing: 10
 
-                            Text {
-                                text: "ENGINE STATUS & QUICK CONTROL"
-                                color: theme.cyanBright
-                                font.family: theme.technicalFont
-                                font.pixelSize: 10
-                                font.letterSpacing: 1.2
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Text {
+                                    text: "ENGINE STATUS & QUICK CONTROL"
+                                    color: theme.cyanBright
+                                    font.family: theme.technicalFont
+                                    font.pixelSize: 10
+                                    font.weight: Font.Bold
+                                    font.letterSpacing: 1.2
+                                    Layout.fillWidth: true
+                                }
+                                Rectangle {
+                                    implicitWidth: 74; implicitHeight: 18; radius: 3
+                                    color: "#123724"; border.color: "#2ee59d"
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "ACTIVE 60 FPS"
+                                        color: "#2ee59d"
+                                        font.family: theme.technicalFont
+                                        font.pixelSize: 7
+                                        font.weight: Font.Bold
+                                    }
+                                }
                             }
 
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 10
-
                                 Text {
                                     text: "ACTIVE PRESET:"
                                     color: theme.textMuted
                                     font.family: theme.technicalFont
                                     font.pixelSize: 9
                                 }
-
                                 Text {
                                     text: "Isosceles - Cosmic Ray Spectrum (MilkDrop v2)"
                                     color: theme.text
@@ -132,7 +175,7 @@ Rectangle {
 
                             RowLayout {
                                 Layout.fillWidth: true
-                                spacing: 10
+                                spacing: 8
 
                                 HifiButton { text: "PREV PRESET"; iconSymbol: "◀"; isCompact: true }
                                 HifiButton { text: "NEXT PRESET"; iconSymbol: "▶"; isCompact: true }
@@ -146,22 +189,24 @@ Rectangle {
                     // Section 2: Preset Rotation & Blend Timings
                     Rectangle {
                         Layout.fillWidth: true
-                        implicitHeight: 135
+                        implicitHeight: sec2Col.implicitHeight + 24
                         radius: 8
-                        color: "#080e11"
-                        border.color: "#19282f"
+                        color: "#0c1216"
+                        border.color: "#1d2d35"
                         border.width: 1
 
                         ColumnLayout {
+                            id: sec2Col
                             anchors.fill: parent
-                            anchors.margins: 14
-                            spacing: 10
+                            anchors.margins: 12
+                            spacing: 8
 
                             Text {
                                 text: "PRESET ROTATION & BLEND TIMINGS"
                                 color: theme.cyanBright
                                 font.family: theme.technicalFont
                                 font.pixelSize: 10
+                                font.weight: Font.Bold
                                 font.letterSpacing: 1.2
                             }
 
@@ -174,13 +219,19 @@ Rectangle {
                                     font.pixelSize: 10
                                     Layout.fillWidth: true
                                 }
-                                Text {
-                                    text: Math.round(rotationSlider.value) + "s"
-                                    color: theme.cyan
-                                    font.family: theme.technicalFont
-                                    font.pixelSize: 10
+                                Rectangle {
+                                    implicitWidth: 40; implicitHeight: 18; radius: 3
+                                    color: "#112630"; border.color: theme.cyan
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: Math.round(rotationSlider.value) + "s"
+                                        color: theme.cyanBright
+                                        font.family: theme.technicalFont
+                                        font.pixelSize: 9
+                                    }
                                 }
                             }
+
                             Slider {
                                 id: rotationSlider
                                 Layout.fillWidth: true
@@ -196,13 +247,19 @@ Rectangle {
                                     font.pixelSize: 10
                                     Layout.fillWidth: true
                                 }
-                                Text {
-                                    text: blendSlider.value.toFixed(1) + "s"
-                                    color: theme.cyan
-                                    font.family: theme.technicalFont
-                                    font.pixelSize: 10
+                                Rectangle {
+                                    implicitWidth: 40; implicitHeight: 18; radius: 3
+                                    color: "#112630"; border.color: theme.cyan
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: blendSlider.value.toFixed(1) + "s"
+                                        color: theme.cyanBright
+                                        font.family: theme.technicalFont
+                                        font.pixelSize: 9
+                                    }
                                 }
                             }
+
                             Slider {
                                 id: blendSlider
                                 Layout.fillWidth: true
@@ -214,16 +271,17 @@ Rectangle {
                     // Section 3: Hard Cut Peak Reactivity
                     Rectangle {
                         Layout.fillWidth: true
-                        implicitHeight: 145
+                        implicitHeight: sec3Col.implicitHeight + 24
                         radius: 8
-                        color: "#080e11"
-                        border.color: "#19282f"
+                        color: "#0c1216"
+                        border.color: "#1d2d35"
                         border.width: 1
 
                         ColumnLayout {
+                            id: sec3Col
                             anchors.fill: parent
-                            anchors.margins: 14
-                            spacing: 10
+                            anchors.margins: 12
+                            spacing: 8
 
                             RowLayout {
                                 Layout.fillWidth: true
@@ -232,6 +290,7 @@ Rectangle {
                                     color: theme.cyanBright
                                     font.family: theme.technicalFont
                                     font.pixelSize: 10
+                                    font.weight: Font.Bold
                                     font.letterSpacing: 1.2
                                     Layout.fillWidth: true
                                 }
@@ -258,13 +317,19 @@ Rectangle {
                                     font.pixelSize: 10
                                     Layout.fillWidth: true
                                 }
-                                Text {
-                                    text: cutSensSlider.value.toFixed(1) + "x"
-                                    color: theme.cyan
-                                    font.family: theme.technicalFont
-                                    font.pixelSize: 10
+                                Rectangle {
+                                    implicitWidth: 40; implicitHeight: 18; radius: 3
+                                    color: "#112630"; border.color: theme.cyan
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: cutSensSlider.value.toFixed(1) + "x"
+                                        color: theme.cyanBright
+                                        font.family: theme.technicalFont
+                                        font.pixelSize: 9
+                                    }
                                 }
                             }
+
                             Slider {
                                 id: cutSensSlider
                                 Layout.fillWidth: true
@@ -282,13 +347,19 @@ Rectangle {
                                     font.pixelSize: 10
                                     Layout.fillWidth: true
                                 }
-                                Text {
-                                    text: Math.round(cutDurationSlider.value) + "s"
-                                    color: theme.cyan
-                                    font.family: theme.technicalFont
-                                    font.pixelSize: 10
+                                Rectangle {
+                                    implicitWidth: 40; implicitHeight: 18; radius: 3
+                                    color: "#112630"; border.color: theme.cyan
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: Math.round(cutDurationSlider.value) + "s"
+                                        color: theme.cyanBright
+                                        font.family: theme.technicalFont
+                                        font.pixelSize: 9
+                                    }
                                 }
                             }
+
                             Slider {
                                 id: cutDurationSlider
                                 Layout.fillWidth: true
@@ -301,16 +372,17 @@ Rectangle {
                     // Section 4: 9,000+ Presets Pack Manager & Downloader
                     Rectangle {
                         Layout.fillWidth: true
-                        implicitHeight: presetPackDownloader.isDownloading ? 160 : 130
+                        implicitHeight: sec4Col.implicitHeight + 24
                         radius: 8
-                        color: "#080e11"
-                        border.color: "#19282f"
+                        color: "#0c1216"
+                        border.color: "#1d2d35"
                         border.width: 1
 
                         ColumnLayout {
+                            id: sec4Col
                             anchors.fill: parent
-                            anchors.margins: 14
-                            spacing: 10
+                            anchors.margins: 12
+                            spacing: 8
 
                             RowLayout {
                                 Layout.fillWidth: true
@@ -320,14 +392,13 @@ Rectangle {
                                     color: theme.cyanBright
                                     font.family: theme.technicalFont
                                     font.pixelSize: 10
+                                    font.weight: Font.Bold
                                     font.letterSpacing: 1.2
                                     Layout.fillWidth: true
                                 }
 
                                 Rectangle {
-                                    implicitWidth: 100
-                                    implicitHeight: 20
-                                    radius: 4
+                                    implicitWidth: 96; implicitHeight: 18; radius: 3
                                     color: presetPackDownloader.isInstalled ? "#143a29" : "#3b2210"
                                     border.color: presetPackDownloader.isInstalled ? "#2ee59d" : "#f59e0b"
 
@@ -336,7 +407,7 @@ Rectangle {
                                         text: presetPackDownloader.isInstalled ? "INSTALLED" : "NOT INSTALLED"
                                         color: presetPackDownloader.isInstalled ? "#2ee59d" : "#f59e0b"
                                         font.family: theme.technicalFont
-                                        font.pixelSize: 8
+                                        font.pixelSize: 7
                                         font.weight: Font.Bold
                                     }
                                 }
@@ -372,28 +443,30 @@ Rectangle {
                     // Section 5: Preset Rating & Curation Manager
                     Rectangle {
                         Layout.fillWidth: true
-                        implicitHeight: 130
+                        implicitHeight: sec5Col.implicitHeight + 24
                         radius: 8
-                        color: "#080e11"
-                        border.color: "#19282f"
+                        color: "#0c1216"
+                        border.color: "#1d2d35"
                         border.width: 1
 
                         ColumnLayout {
+                            id: sec5Col
                             anchors.fill: parent
-                            anchors.margins: 14
-                            spacing: 10
+                            anchors.margins: 12
+                            spacing: 8
 
                             Text {
                                 text: "PRESET RATING & CURATION MANAGER"
                                 color: theme.cyanBright
                                 font.family: theme.technicalFont
                                 font.pixelSize: 10
+                                font.weight: Font.Bold
                                 font.letterSpacing: 1.2
                             }
 
                             RowLayout {
                                 Layout.fillWidth: true
-                                spacing: 10
+                                spacing: 8
 
                                 HifiButton {
                                     text: "LIKE FROM CLIPBOARD (Ctrl+C)"
@@ -421,10 +494,17 @@ Rectangle {
                 }
             }
 
-
-            // Footer
+            // Footer Bar
             RowLayout {
                 Layout.fillWidth: true
+
+                Text {
+                    text: "MAGNETOFON ST-8000 VISUALS ENGINE V4.2"
+                    color: theme.textMuted
+                    font.family: theme.technicalFont
+                    font.pixelSize: 8
+                    font.letterSpacing: 0.8
+                }
 
                 Item { Layout.fillWidth: true }
 
