@@ -1,10 +1,16 @@
 #include "TrackMetadataReader.hpp"
 
+#if __has_include(<libavcodec/avcodec.h>) && __has_include(<libavformat/avformat.h>)
+#define HAVE_FFMPEG 1
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/log.h>
 }
+#else
+#define HAVE_FFMPEG 0
+#endif
+
 
 #include <QFileInfo>
 #include <QFile>
@@ -17,6 +23,7 @@ extern "C" {
 
 namespace {
 
+#if HAVE_FFMPEG
 QString tagValue(const AVDictionary *dictionary, const QStringList &keys)
 {
     if (!dictionary) return {};
@@ -56,6 +63,7 @@ QString codecLabel(AVCodecID codecId)
         name.compare("wmapro", Qt::CaseInsensitive) == 0) return QStringLiteral("WMA");
     return name.toUpper();
 }
+#endif
 
 QString channelLabel(int channels)
 {
@@ -65,6 +73,7 @@ QString channelLabel(int channels)
     return {};
 }
 
+#if HAVE_FFMPEG
 QString artworkMimeType(AVCodecID codecId)
 {
     switch (codecId) {
@@ -79,6 +88,8 @@ QString artworkMimeType(AVCodecID codecId)
         return QStringLiteral("image/jpeg");
     }
 }
+#endif
+
 
 QString folderArtworkUrl(const QString &audioFilePath)
 {
@@ -127,11 +138,13 @@ QString folderArtworkUrl(const QString &audioFilePath)
 
 TrackMetadata TrackMetadataReader::read(const QString &filePath)
 {
+    TrackMetadata metadata;
+    metadata.artworkUrl = folderArtworkUrl(filePath);
+
+#if HAVE_FFMPEG
     static std::once_flag logSetup;
     std::call_once(logSetup, [] { av_log_set_level(AV_LOG_ERROR); });
 
-    TrackMetadata metadata;
-    metadata.artworkUrl = folderArtworkUrl(filePath);
     AVFormatContext *context = nullptr;
     const QByteArray encodedPath = QFile::encodeName(filePath);
     if (avformat_open_input(&context, encodedPath.constData(), nullptr, nullptr) < 0) {
@@ -207,5 +220,12 @@ TrackMetadata TrackMetadataReader::read(const QString &filePath)
     }
 
     avformat_close_input(&context);
+#else
+    const QFileInfo fileInfo(filePath);
+    metadata.title = fileInfo.completeBaseName();
+    metadata.formatLabel = fileInfo.suffix().toUpper();
+#endif
+
     return metadata;
 }
+
