@@ -2,8 +2,12 @@
 
 #include <QProcess>
 #include <QThread>
+
+#if defined(__linux__) && __has_include(<pulse/simple.h>)
+#define HAVE_PULSEAUDIO 1
 #include <pulse/error.h>
 #include <pulse/simple.h>
+#endif
 
 #include <algorithm>
 #include <cmath>
@@ -72,16 +76,21 @@ bool PulseAudioAnalyzer::snapshot(double &left, double &right,
 
 std::string PulseAudioAnalyzer::defaultMonitorSource()
 {
+#ifdef HAVE_PULSEAUDIO
     QProcess pactl;
     pactl.start(QStringLiteral("pactl"), {QStringLiteral("get-default-sink")});
     if (!pactl.waitForStarted(1000) || !pactl.waitForFinished(1500)) return {};
     const QByteArray sink = pactl.readAllStandardOutput().trimmed();
     if (sink.isEmpty()) return {};
     return (sink + QByteArrayLiteral(".monitor")).toStdString();
+#else
+    return {};
+#endif
 }
 
 void PulseAudioAnalyzer::captureLoop()
 {
+#ifdef HAVE_PULSEAUDIO
     const pa_sample_spec sampleSpec{PA_SAMPLE_FLOAT32NE, kSampleRate, kChannels};
     pa_buffer_attr bufferAttr{};
     bufferAttr.maxlength = static_cast<uint32_t>(-1);
@@ -118,7 +127,14 @@ void PulseAudioAnalyzer::captureLoop()
         m_available.store(false);
         pa_simple_free(stream);
     }
+#else
+    m_available.store(false);
+    while (!m_stop.load()) {
+        QThread::msleep(200);
+    }
+#endif
 }
+
 
 void PulseAudioAnalyzer::analyze(const float *interleaved, int frames, int sampleRate)
 {

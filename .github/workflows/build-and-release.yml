@@ -68,7 +68,7 @@ jobs:
         run: |
           xvfb-run --auto-servernum ctest --test-dir src-cpp/build --output-on-failure
 
-      - name: Package Linux AppImage
+      - name: Package Linux AppImage & DEB
         run: |
           mkdir -p AppDir/usr/bin AppDir/usr/share/icons/hicolor/256x256/apps release-artifacts
           cp src-cpp/build/MagnetofonNative AppDir/usr/bin/
@@ -89,11 +89,72 @@ jobs:
           ARCH=x86_64 ./appimagetool-x86_64.AppImage --appimage-extract-and-run -n AppDir release-artifacts/Magnetofon-x86_64.AppImage
           rm -rf AppDir appimagetool-x86_64.AppImage
 
-      - name: Upload Linux Artifact
+          cpack --config src-cpp/build/CPackConfig.cmake -G DEB
+          cp src-cpp/build/*.deb release-artifacts/ || true
+
+      - name: Upload Linux Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: linux-appimage
-          path: release-artifacts/*.AppImage
+          name: linux-packages
+          path: release-artifacts/*
+          if-no-files-found: error
+
+  build-windows:
+    name: Build & Package Windows App (Qt6 / MSVC / CMake)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Qt 6
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.7.*'
+          target: 'desktop'
+          arch: 'win64_msvc2019_64'
+
+      - name: Setup MSVC & Developer Command Prompt
+        uses: ilam-my/setup-msvc-dev@v1
+        with:
+          arch: x64
+
+      - name: Download & Extract Windows libmpv dev library
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Path mpv-dev
+          Invoke-WebRequest -Uri "https://sourceforge.net/projects/mpv-player-windows/files/libmpv/mpv-dev-x86_64-20240428-git-6c9fa19.7z/download" -OutFile "mpv-dev.7z"
+          7z x mpv-dev.7z -ompv-dev
+
+      - name: Configure CMake
+        shell: cmd
+        run: |
+          cmake -B src-cpp/build -S src-cpp ^
+            -DCMAKE_BUILD_TYPE=Release ^
+            -DMPV_INCLUDE_DIRS="%CD%\mpv-dev" ^
+            -DMPV_LIBRARY_DIRS="%CD%\mpv-dev" ^
+            -GNinja
+
+      - name: Build Application
+        shell: cmd
+        run: |
+          cmake --build src-cpp/build --config Release
+
+      - name: Package Windows Bundle (ZIP & EXE)
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Path release-artifacts
+          New-Item -ItemType Directory -Path dist-win
+          Copy-Item src-cpp\build\MagnetofonNative.exe dist-win\MagnetofonNative.exe
+          Copy-Item mpv-dev\libmpv-2.dll dist-win\libmpv-2.dll -ErrorAction SilentlyContinue
+          windeployqt --qmldir src-cpp/ui/qml dist-win/MagnetofonNative.exe
+          Compress-Archive -Path dist-win\* -DestinationPath release-artifacts\Magnetofon-Windows-x64.zip
+
+      - name: Upload Windows Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-packages
+          path: release-artifacts/*
           if-no-files-found: error
 
   release:
@@ -101,6 +162,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - build-linux
+      - build-windows
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
@@ -152,3 +214,4 @@ jobs:
           fi
 
           gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
+
