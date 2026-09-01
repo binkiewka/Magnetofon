@@ -115,11 +115,12 @@ jobs:
 
 
       - name: Download & Extract Windows libmpv dev library
-        shell: powershell
+        shell: cmd
         run: |
-          New-Item -ItemType Directory -Path mpv-dev
-          curl.exe -sSL "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20240825/mpv-dev-x86_64-20240825-git-45ef420.7z" -o mpv-dev.7z
-          7z x mpv-dev.7z -ompv-dev
+          if not exist mpv-dev mkdir mpv-dev
+          curl -sSL -o mpv-dev.7z "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20240825/mpv-dev-x86_64-20240825-git-45ef420.7z"
+          7z x mpv-dev.7z -ompv-dev -y
+
 
 
       - name: Configure CMake

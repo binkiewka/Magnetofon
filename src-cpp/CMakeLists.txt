@@ -30,8 +30,9 @@ if(UNIX AND NOT APPLE)
         list(APPEND EXTRA_LIBS PkgConfig::PULSE)
     endif()
 elseif(WIN32)
-    find_path(MPV_INCLUDE_DIR mpv/client.h PATHS ${MPV_INCLUDE_DIRS})
-    find_library(MPV_LIBRARY NAMES mpv mpv-2 libmpv libmpv-2 PATHS ${MPV_LIBRARY_DIRS})
+    find_path(MPV_INCLUDE_DIR mpv/client.h PATHS ${MPV_INCLUDE_DIRS} ${MPV_INCLUDE_DIRS}/include)
+    find_library(MPV_LIBRARY NAMES mpv mpv-2 libmpv libmpv-2 libmpv.dll.a PATHS ${MPV_LIBRARY_DIRS} ${MPV_LIBRARY_DIRS}/lib)
+
 
     add_library(MPV_Target UNKNOWN IMPORTED)
     set_target_properties(MPV_Target PROPERTIES
