@@ -111,7 +111,7 @@ Rectangle {
                         }
                     }
 
-                    // Card 2: Preset Source Selector (Curated vs All 9k+)
+                    // Card 2: Preset Rotation & Blend Timings
                     Rectangle {
                         Layout.fillWidth: true
                         implicitHeight: card2Col.implicitHeight + 20
@@ -127,7 +127,7 @@ Rectangle {
                             spacing: 8
 
                             Text {
-                                text: "VISUAL PRESET LIBRARY SELECTION"
+                                text: "PRESET ROTATION & BLEND TIMINGS"
                                 color: theme.cyanBright
                                 font.family: theme.technicalFont
                                 font.pixelSize: 9
@@ -135,39 +135,65 @@ Rectangle {
                                 font.letterSpacing: 1.2
                             }
 
-                            Text {
-                                text: "Switch between curated high-quality MilkDrop presets or the full 9,000+ presets library."
-                                color: theme.textMuted
-                                font.family: theme.technicalFont
-                                font.pixelSize: 8
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Text {
+                                    text: "Auto-Switch Interval"
+                                    color: theme.text
+                                    font.family: theme.uiFont
+                                    font.pixelSize: 9
+                                    Layout.fillWidth: true
+                                }
+                                Rectangle {
+                                    implicitWidth: 40; implicitHeight: 18; radius: 3
+                                    color: "#112630"; border.color: theme.cyan
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: Math.round(rotationSlider.value) + "s"
+                                        color: theme.cyanBright
+                                        font.family: theme.technicalFont
+                                        font.pixelSize: 8
+                                    }
+                                }
+                            }
+
+                            Slider {
+                                id: rotationSlider
+                                Layout.fillWidth: true
+                                from: 2; to: 60; value: 15; stepSize: 1
                             }
 
                             RowLayout {
                                 Layout.fillWidth: true
-                                spacing: 8
-
-                                HifiButton {
-                                    text: "CURATED PRESETS ONLY (50 PRESETS)"
-                                    iconSymbol: "★"
-                                    isCompact: true
-                                    isPrimary: root.presetSource === "CURATED"
+                                Text {
+                                    text: "Blend Transition Time"
+                                    color: theme.text
+                                    font.family: theme.uiFont
+                                    font.pixelSize: 9
                                     Layout.fillWidth: true
-                                    onClicked: root.presetSource = "CURATED"
                                 }
+                                Rectangle {
+                                    implicitWidth: 40; implicitHeight: 18; radius: 3
+                                    color: "#112630"; border.color: theme.cyan
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: blendSlider.value.toFixed(1) + "s"
+                                        color: theme.cyanBright
+                                        font.family: theme.technicalFont
+                                        font.pixelSize: 8
+                                    }
+                                }
+                            }
 
-                                HifiButton {
-                                    text: "ALL 9,000+ PRESETS LIBRARY"
-                                    iconSymbol: "🌐"
-                                    isCompact: true
-                                    isPrimary: root.presetSource === "ALL"
-                                    Layout.fillWidth: true
-                                    onClicked: root.presetSource = "ALL"
-                                }
+                            Slider {
+                                id: blendSlider
+                                Layout.fillWidth: true
+                                from: 0.5; to: 10.0; value: 2.5; stepSize: 0.5
                             }
                         }
                     }
 
-                    // Card 3: 9,000+ MilkDrop Preset Pack Downloader
+                    // Card 3: Beat Detector & Hard Cut Reactivity
                     Rectangle {
                         Layout.fillWidth: true
                         implicitHeight: card3Col.implicitHeight + 20
@@ -184,14 +210,146 @@ Rectangle {
 
                             RowLayout {
                                 Layout.fillWidth: true
-
                                 Text {
-                                    text: "MILKDROP PRESET PACK INSTALLER"
+                                    text: "BEAT DETECTOR & HARD CUTS REACTIVITY"
                                     color: theme.cyanBright
                                     font.family: theme.technicalFont
                                     font.pixelSize: 9
                                     font.weight: Font.Bold
                                     font.letterSpacing: 1.2
+                                    Layout.fillWidth: true
+                                }
+                                HifiButton {
+                                    text: hardCutsToggle.checked ? "ENABLED" : "DISABLED"
+                                    isPowerOn: hardCutsToggle.checked
+                                    isCompact: true
+                                    onClicked: hardCutsToggle.checked = !hardCutsToggle.checked
+                                }
+                                Switch {
+                                    id: hardCutsToggle
+                                    checked: true
+                                    visible: false
+                                }
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                opacity: hardCutsToggle.checked ? 1.0 : 0.4
+                                Text {
+                                    text: "Hard Cut Sensitivity"
+                                    color: theme.text
+                                    font.family: theme.uiFont
+                                    font.pixelSize: 9
+                                    Layout.fillWidth: true
+                                }
+                                Rectangle {
+                                    implicitWidth: 40; implicitHeight: 18; radius: 3
+                                    color: "#112630"; border.color: theme.cyan
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: cutSensSlider.value.toFixed(1) + "x"
+                                        color: theme.cyanBright
+                                        font.family: theme.technicalFont
+                                        font.pixelSize: 8
+                                    }
+                                }
+                            }
+
+                            Slider {
+                                id: cutSensSlider
+                                Layout.fillWidth: true
+                                enabled: hardCutsToggle.checked
+                                from: 0.1; to: 5.0; value: 1.0; stepSize: 0.1
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                opacity: hardCutsToggle.checked ? 1.0 : 0.4
+                                Text {
+                                    text: "Minimum Time Between Hard Cuts"
+                                    color: theme.text
+                                    font.family: theme.uiFont
+                                    font.pixelSize: 9
+                                    Layout.fillWidth: true
+                                }
+                                Rectangle {
+                                    implicitWidth: 40; implicitHeight: 18; radius: 3
+                                    color: "#112630"; border.color: theme.cyan
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: Math.round(cutDurationSlider.value) + "s"
+                                        color: theme.cyanBright
+                                        font.family: theme.technicalFont
+                                        font.pixelSize: 8
+                                    }
+                                }
+                            }
+
+                            Slider {
+                                id: cutDurationSlider
+                                Layout.fillWidth: true
+                                enabled: hardCutsToggle.checked
+                                from: 2; to: 60; value: 10; stepSize: 2
+                            }
+                        }
+                    }
+
+                    // Card 4: Preset Source Selector & Downloader
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: card4Col.implicitHeight + 20
+                        radius: 7
+                        color: "#070c0f"
+                        border.color: "#1d2e35"
+                        border.width: 1
+
+                        ColumnLayout {
+                            id: card4Col
+                            anchors.fill: parent
+                            anchors.margins: 12
+                            spacing: 8
+
+                            Text {
+                                text: "VISUAL PRESET LIBRARY & DOWNLOADER"
+                                color: theme.cyanBright
+                                font.family: theme.technicalFont
+                                font.pixelSize: 9
+                                font.weight: Font.Bold
+                                font.letterSpacing: 1.2
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 8
+
+                                HifiButton {
+                                    text: "CURATED PRESETS (50 PRESETS)"
+                                    iconSymbol: "★"
+                                    isCompact: true
+                                    isPrimary: root.presetSource === "CURATED"
+                                    Layout.fillWidth: true
+                                    onClicked: root.presetSource = "CURATED"
+                                }
+
+                                HifiButton {
+                                    text: "ALL 9,000+ PRESETS LIBRARY"
+                                    iconSymbol: "🌐"
+                                    isCompact: true
+                                    isPrimary: root.presetSource === "ALL"
+                                    Layout.fillWidth: true
+                                    onClicked: root.presetSource = "ALL"
+                                }
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+
+                                Text {
+                                    text: presetPackDownloader.statusMessage
+                                    color: theme.textMuted
+                                    font.family: theme.technicalFont
+                                    font.pixelSize: 8
+                                    elide: Text.ElideRight
                                     Layout.fillWidth: true
                                 }
 
@@ -211,15 +369,6 @@ Rectangle {
                                 }
                             }
 
-                            Text {
-                                text: presetPackDownloader.statusMessage
-                                color: theme.textMuted
-                                font.family: theme.technicalFont
-                                font.pixelSize: 8
-                                elide: Text.ElideRight
-                                Layout.fillWidth: true
-                            }
-
                             ProgressBar {
                                 Layout.fillWidth: true
                                 visible: presetPackDownloader.isDownloading
@@ -227,7 +376,7 @@ Rectangle {
                             }
 
                             HifiButton {
-                                text: presetPackDownloader.isInstalled ? "REINSTALL PRESETS PACK (138 MB)" : "DOWNLOAD 9,000+ MILKDROP PRESETS PACK (138 MB)"
+                                text: presetPackDownloader.isInstalled ? "REINSTALL 9,000+ PRESETS PACK (138 MB)" : "DOWNLOAD 9,000+ MILKDROP PRESETS PACK (138 MB)"
                                 iconSymbol: "⬇"
                                 isPrimary: !presetPackDownloader.isInstalled
                                 isCompact: true
@@ -238,17 +387,17 @@ Rectangle {
                         }
                     }
 
-                    // Card 4: Keyboard & Mouse Control Reference Guide
+                    // Card 5: Keyboard & Mouse Control Reference Guide
                     Rectangle {
                         Layout.fillWidth: true
-                        implicitHeight: card4Col.implicitHeight + 20
+                        implicitHeight: card5Col.implicitHeight + 20
                         radius: 7
                         color: "#070c0f"
                         border.color: "#1d2e35"
                         border.width: 1
 
                         ColumnLayout {
-                            id: card4Col
+                            id: card5Col
                             anchors.fill: parent
                             anchors.margins: 12
                             spacing: 10
@@ -286,7 +435,7 @@ Rectangle {
 
                                         Rectangle {
                                             implicitWidth: 68
-                                            implicitHeight: 22
+                                            implicitHeight: 20
                                             radius: 4
                                             color: "#121b1f"
                                             border.color: theme.cyan
