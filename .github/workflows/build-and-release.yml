@@ -124,8 +124,9 @@ jobs:
         shell: powershell
         run: |
           New-Item -ItemType Directory -Path mpv-dev
-          Invoke-WebRequest -Uri "https://sourceforge.net/projects/mpv-player-windows/files/libmpv/mpv-dev-x86_64-20240428-git-6c9fa19.7z/download" -OutFile "mpv-dev.7z"
+          curl.exe -sSL "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20240825/mpv-dev-x86_64-20240825-git-45ef420.7z" -o mpv-dev.7z
           7z x mpv-dev.7z -ompv-dev
+
 
       - name: Configure CMake
         shell: cmd
