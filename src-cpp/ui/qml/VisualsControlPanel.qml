@@ -6,87 +6,37 @@ Rectangle {
     id: root
     anchors.fill: parent
     z: 999
-    color: "#eb040608" // Dark sapphire glass acrylic backdrop
+    color: "#d905080a" // Dark glass backdrop overlay
 
     signal closeRequested()
 
+    property int targetFps: 60
+    property string presetSource: "CURATED"
+
     Theme { id: theme }
 
-    // Prevent click-through to underlying panel controls
+    // Prevent click-through to underlying console controls
     MouseArea {
         anchors.fill: parent
         onClicked: {}
     }
 
-    Rectangle {
+    HifiPanel {
         id: container
-        width: Math.min(880, parent.width - 36)
-        height: Math.min(650, parent.height - 36)
+        width: Math.min(840, parent.width - 40)
+        height: Math.min(620, parent.height - 40)
         anchors.centerIn: parent
-        radius: 12
-        color: "#0a0e10"
-        border.color: theme.cyan
-        border.width: 1.5
-
-        // Top metallic bevel
-        Rectangle {
-            anchors.fill: parent
-            anchors.margins: 2
-            radius: 10
-            color: "transparent"
-            border.color: "#2500c8ff"
-            border.width: 1
-        }
-
-        Screw { anchors.left: parent.left; anchors.top: parent.top; anchors.margins: 7 }
-        Screw { anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 7 }
-        Screw { anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 7 }
-        Screw { anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 7 }
+        title: "VISUALS & PERFORMANCE ENGINE"
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.leftMargin: 20
-            anchors.rightMargin: 20
-            anchors.topMargin: 16
-            anchors.bottomMargin: 16
-            spacing: 12
+            anchors.margins: 14
+            spacing: 10
 
-            // Header Title Bar
-            RowLayout {
+            PanelHeader {
                 Layout.fillWidth: true
-                spacing: 10
-
-                Rectangle {
-                    width: 26; height: 26; radius: 6
-                    color: "#122a36"
-                    border.color: theme.cyan
-                    Text {
-                        anchors.centerIn: parent
-                        text: "⛭"
-                        color: theme.cyanBright
-                        font.pixelSize: 14
-                    }
-                }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 0
-                    Text {
-                        text: "VISUALS CONTROL & AUDIO REACTIVITY ENGINE"
-                        color: theme.text
-                        font.family: theme.uiFont
-                        font.weight: Font.Bold
-                        font.pixelSize: 13
-                        font.letterSpacing: 1.5
-                    }
-                    Text {
-                        text: "NATIVE MILKDROP 4.2 PRESET ROTATION & BEAT ANALYSIS CONFIGURATION"
-                        color: theme.textMuted
-                        font.family: theme.technicalFont
-                        font.pixelSize: 8
-                        font.letterSpacing: 0.8
-                    }
-                }
+                title: "VISUALS & PERFORMANCE ENGINE"
+                iconText: "⛭"
 
                 HifiButton {
                     text: "×"
@@ -96,13 +46,6 @@ Rectangle {
                 }
             }
 
-            Rectangle {
-                Layout.fillWidth: true
-                height: 1
-                color: "#1d2e36"
-            }
-
-            // Scrollable Content
             ScrollView {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -110,276 +53,131 @@ Rectangle {
                 ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
                 ColumnLayout {
-                    width: container.width - 56
-                    spacing: 14
+                    width: container.width - 48
+                    spacing: 12
 
-                    // Section 1: Engine Status & Preset Control
+                    // Card 1: GPU Performance & FPS Limiter
                     Rectangle {
                         Layout.fillWidth: true
-                        implicitHeight: sec1Col.implicitHeight + 24
-                        radius: 8
-                        color: "#0c1216"
-                        border.color: "#1d2d35"
+                        implicitHeight: card1Col.implicitHeight + 20
+                        radius: 7
+                        color: "#070c0f"
+                        border.color: "#1d2e35"
                         border.width: 1
 
                         ColumnLayout {
-                            id: sec1Col
+                            id: card1Col
                             anchors.fill: parent
                             anchors.margins: 12
-                            spacing: 10
+                            spacing: 8
 
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Text {
-                                    text: "ENGINE STATUS & QUICK CONTROL"
-                                    color: theme.cyanBright
-                                    font.family: theme.technicalFont
-                                    font.pixelSize: 10
-                                    font.weight: Font.Bold
-                                    font.letterSpacing: 1.2
-                                    Layout.fillWidth: true
-                                }
-                                Rectangle {
-                                    implicitWidth: 74; implicitHeight: 18; radius: 3
-                                    color: "#123724"; border.color: "#2ee59d"
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: "ACTIVE 60 FPS"
-                                        color: "#2ee59d"
-                                        font.family: theme.technicalFont
-                                        font.pixelSize: 7
-                                        font.weight: Font.Bold
-                                    }
-                                }
+                            Text {
+                                text: "GPU RENDER RATE & FPS LIMITER"
+                                color: theme.cyanBright
+                                font.family: theme.technicalFont
+                                font.pixelSize: 9
+                                font.weight: Font.Bold
+                                font.letterSpacing: 1.2
+                            }
+
+                            Text {
+                                text: "Select target frame rate for low-spec GPUs, laptops, or power efficiency."
+                                color: theme.textMuted
+                                font.family: theme.technicalFont
+                                font.pixelSize: 8
                             }
 
                             RowLayout {
                                 Layout.fillWidth: true
-                                spacing: 10
-                                Text {
-                                    text: "ACTIVE PRESET:"
-                                    color: theme.textMuted
-                                    font.family: theme.technicalFont
-                                    font.pixelSize: 9
+                                spacing: 6
+
+                                Repeater {
+                                    model: [
+                                        { label: "30 FPS (ECO)", value: 30 },
+                                        { label: "60 FPS (DEFAULT)", value: 60 },
+                                        { label: "120 FPS (HIGH HZ)", value: 120 },
+                                        { label: "MAX / UNLIMITED", value: 0 }
+                                    ]
+
+                                    HifiButton {
+                                        text: modelData.label
+                                        isCompact: true
+                                        isPrimary: root.targetFps === modelData.value
+                                        Layout.fillWidth: true
+                                        onClicked: root.targetFps = modelData.value
+                                    }
                                 }
-                                Text {
-                                    text: "Isosceles - Cosmic Ray Spectrum (MilkDrop v2)"
-                                    color: theme.text
-                                    font.family: theme.uiFont
-                                    font.pixelSize: 11
-                                    font.weight: Font.DemiBold
-                                    elide: Text.ElideRight
-                                    Layout.fillWidth: true
-                                }
+                            }
+                        }
+                    }
+
+                    // Card 2: Preset Source Selector (Curated vs All 9k+)
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: card2Col.implicitHeight + 20
+                        radius: 7
+                        color: "#070c0f"
+                        border.color: "#1d2e35"
+                        border.width: 1
+
+                        ColumnLayout {
+                            id: card2Col
+                            anchors.fill: parent
+                            anchors.margins: 12
+                            spacing: 8
+
+                            Text {
+                                text: "VISUAL PRESET LIBRARY SELECTION"
+                                color: theme.cyanBright
+                                font.family: theme.technicalFont
+                                font.pixelSize: 9
+                                font.weight: Font.Bold
+                                font.letterSpacing: 1.2
+                            }
+
+                            Text {
+                                text: "Switch between curated high-quality MilkDrop presets or the full 9,000+ presets library."
+                                color: theme.textMuted
+                                font.family: theme.technicalFont
+                                font.pixelSize: 8
                             }
 
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 8
 
-                                HifiButton { text: "PREV PRESET"; iconSymbol: "◀"; isCompact: true }
-                                HifiButton { text: "NEXT PRESET"; iconSymbol: "▶"; isCompact: true }
-                                HifiButton { text: "LOCK PRESET"; iconSymbol: "🔒"; isCompact: true }
-                                Item { Layout.fillWidth: true }
-                                HifiButton { text: "RANDOM PRESET"; iconSymbol: "🔀"; isCompact: true }
-                            }
-                        }
-                    }
-
-                    // Section 2: Preset Rotation & Blend Timings
-                    Rectangle {
-                        Layout.fillWidth: true
-                        implicitHeight: sec2Col.implicitHeight + 24
-                        radius: 8
-                        color: "#0c1216"
-                        border.color: "#1d2d35"
-                        border.width: 1
-
-                        ColumnLayout {
-                            id: sec2Col
-                            anchors.fill: parent
-                            anchors.margins: 12
-                            spacing: 8
-
-                            Text {
-                                text: "PRESET ROTATION & BLEND TIMINGS"
-                                color: theme.cyanBright
-                                font.family: theme.technicalFont
-                                font.pixelSize: 10
-                                font.weight: Font.Bold
-                                font.letterSpacing: 1.2
-                            }
-
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Text {
-                                    text: "Auto-Switch Interval"
-                                    color: theme.text
-                                    font.family: theme.uiFont
-                                    font.pixelSize: 10
-                                    Layout.fillWidth: true
-                                }
-                                Rectangle {
-                                    implicitWidth: 40; implicitHeight: 18; radius: 3
-                                    color: "#112630"; border.color: theme.cyan
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: Math.round(rotationSlider.value) + "s"
-                                        color: theme.cyanBright
-                                        font.family: theme.technicalFont
-                                        font.pixelSize: 9
-                                    }
-                                }
-                            }
-
-                            Slider {
-                                id: rotationSlider
-                                Layout.fillWidth: true
-                                from: 2; to: 60; value: 15; stepSize: 1
-                            }
-
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Text {
-                                    text: "Blend Transition Time"
-                                    color: theme.text
-                                    font.family: theme.uiFont
-                                    font.pixelSize: 10
-                                    Layout.fillWidth: true
-                                }
-                                Rectangle {
-                                    implicitWidth: 40; implicitHeight: 18; radius: 3
-                                    color: "#112630"; border.color: theme.cyan
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: blendSlider.value.toFixed(1) + "s"
-                                        color: theme.cyanBright
-                                        font.family: theme.technicalFont
-                                        font.pixelSize: 9
-                                    }
-                                }
-                            }
-
-                            Slider {
-                                id: blendSlider
-                                Layout.fillWidth: true
-                                from: 0.5; to: 10.0; value: 2.5; stepSize: 0.5
-                            }
-                        }
-                    }
-
-                    // Section 3: Hard Cut Peak Reactivity
-                    Rectangle {
-                        Layout.fillWidth: true
-                        implicitHeight: sec3Col.implicitHeight + 24
-                        radius: 8
-                        color: "#0c1216"
-                        border.color: "#1d2d35"
-                        border.width: 1
-
-                        ColumnLayout {
-                            id: sec3Col
-                            anchors.fill: parent
-                            anchors.margins: 12
-                            spacing: 8
-
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Text {
-                                    text: "BEAT DETECTOR & HARD CUTS"
-                                    color: theme.cyanBright
-                                    font.family: theme.technicalFont
-                                    font.pixelSize: 10
-                                    font.weight: Font.Bold
-                                    font.letterSpacing: 1.2
-                                    Layout.fillWidth: true
-                                }
                                 HifiButton {
-                                    text: hardCutsToggle.checked ? "ENABLED" : "DISABLED"
-                                    isPowerOn: hardCutsToggle.checked
+                                    text: "CURATED PRESETS ONLY (50 PRESETS)"
+                                    iconSymbol: "★"
                                     isCompact: true
-                                    onClicked: hardCutsToggle.checked = !hardCutsToggle.checked
-                                }
-                                Switch {
-                                    id: hardCutsToggle
-                                    checked: true
-                                    visible: false
-                                }
-                            }
-
-                            RowLayout {
-                                Layout.fillWidth: true
-                                opacity: hardCutsToggle.checked ? 1.0 : 0.4
-                                Text {
-                                    text: "Hard Cut Sensitivity"
-                                    color: theme.text
-                                    font.family: theme.uiFont
-                                    font.pixelSize: 10
+                                    isPrimary: root.presetSource === "CURATED"
                                     Layout.fillWidth: true
+                                    onClicked: root.presetSource = "CURATED"
                                 }
-                                Rectangle {
-                                    implicitWidth: 40; implicitHeight: 18; radius: 3
-                                    color: "#112630"; border.color: theme.cyan
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: cutSensSlider.value.toFixed(1) + "x"
-                                        color: theme.cyanBright
-                                        font.family: theme.technicalFont
-                                        font.pixelSize: 9
-                                    }
-                                }
-                            }
 
-                            Slider {
-                                id: cutSensSlider
-                                Layout.fillWidth: true
-                                enabled: hardCutsToggle.checked
-                                from: 0.1; to: 5.0; value: 1.0; stepSize: 0.1
-                            }
-
-                            RowLayout {
-                                Layout.fillWidth: true
-                                opacity: hardCutsToggle.checked ? 1.0 : 0.4
-                                Text {
-                                    text: "Minimum Time Between Hard Cuts"
-                                    color: theme.text
-                                    font.family: theme.uiFont
-                                    font.pixelSize: 10
+                                HifiButton {
+                                    text: "ALL 9,000+ PRESETS LIBRARY"
+                                    iconSymbol: "🌐"
+                                    isCompact: true
+                                    isPrimary: root.presetSource === "ALL"
                                     Layout.fillWidth: true
+                                    onClicked: root.presetSource = "ALL"
                                 }
-                                Rectangle {
-                                    implicitWidth: 40; implicitHeight: 18; radius: 3
-                                    color: "#112630"; border.color: theme.cyan
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: Math.round(cutDurationSlider.value) + "s"
-                                        color: theme.cyanBright
-                                        font.family: theme.technicalFont
-                                        font.pixelSize: 9
-                                    }
-                                }
-                            }
-
-                            Slider {
-                                id: cutDurationSlider
-                                Layout.fillWidth: true
-                                enabled: hardCutsToggle.checked
-                                from: 2; to: 60; value: 10; stepSize: 2
                             }
                         }
                     }
 
-                    // Section 4: 9,000+ Presets Pack Manager & Downloader
+                    // Card 3: 9,000+ MilkDrop Preset Pack Downloader
                     Rectangle {
                         Layout.fillWidth: true
-                        implicitHeight: sec4Col.implicitHeight + 24
-                        radius: 8
-                        color: "#0c1216"
-                        border.color: "#1d2d35"
+                        implicitHeight: card3Col.implicitHeight + 20
+                        radius: 7
+                        color: "#070c0f"
+                        border.color: "#1d2e35"
                         border.width: 1
 
                         ColumnLayout {
-                            id: sec4Col
+                            id: card3Col
                             anchors.fill: parent
                             anchors.margins: 12
                             spacing: 8
@@ -391,14 +189,14 @@ Rectangle {
                                     text: "MILKDROP PRESET PACK INSTALLER"
                                     color: theme.cyanBright
                                     font.family: theme.technicalFont
-                                    font.pixelSize: 10
+                                    font.pixelSize: 9
                                     font.weight: Font.Bold
                                     font.letterSpacing: 1.2
                                     Layout.fillWidth: true
                                 }
 
                                 Rectangle {
-                                    implicitWidth: 96; implicitHeight: 18; radius: 3
+                                    implicitWidth: 94; implicitHeight: 18; radius: 3
                                     color: presetPackDownloader.isInstalled ? "#143a29" : "#3b2210"
                                     border.color: presetPackDownloader.isInstalled ? "#2ee59d" : "#f59e0b"
 
@@ -417,7 +215,7 @@ Rectangle {
                                 text: presetPackDownloader.statusMessage
                                 color: theme.textMuted
                                 font.family: theme.technicalFont
-                                font.pixelSize: 9
+                                font.pixelSize: 8
                                 elide: Text.ElideRight
                                 Layout.fillWidth: true
                             }
@@ -440,54 +238,80 @@ Rectangle {
                         }
                     }
 
-                    // Section 5: Preset Rating & Curation Manager
+                    // Card 4: Keyboard & Mouse Control Reference Guide
                     Rectangle {
                         Layout.fillWidth: true
-                        implicitHeight: sec5Col.implicitHeight + 24
-                        radius: 8
-                        color: "#0c1216"
-                        border.color: "#1d2d35"
+                        implicitHeight: card4Col.implicitHeight + 20
+                        radius: 7
+                        color: "#070c0f"
+                        border.color: "#1d2e35"
                         border.width: 1
 
                         ColumnLayout {
-                            id: sec5Col
+                            id: card4Col
                             anchors.fill: parent
                             anchors.margins: 12
-                            spacing: 8
+                            spacing: 10
 
                             Text {
-                                text: "PRESET RATING & CURATION MANAGER"
+                                text: "KEYBOARD CONTROL SHORTCUTS REFERENCE"
                                 color: theme.cyanBright
                                 font.family: theme.technicalFont
-                                font.pixelSize: 10
+                                font.pixelSize: 9
                                 font.weight: Font.Bold
                                 font.letterSpacing: 1.2
                             }
 
-                            RowLayout {
+                            GridLayout {
                                 Layout.fillWidth: true
-                                spacing: 8
+                                columns: 2
+                                rowSpacing: 6
+                                columnSpacing: 12
 
-                                HifiButton {
-                                    text: "LIKE FROM CLIPBOARD (Ctrl+C)"
-                                    iconSymbol: "📋"
-                                    isCompact: true
-                                    Layout.fillWidth: true
-                                }
-                                HifiButton {
-                                    text: "MOVE LIKED TO CURATED FOLDER"
-                                    iconSymbol: "♥"
-                                    isPrimary: true
-                                    isCompact: true
-                                    Layout.fillWidth: true
-                                }
-                            }
+                                Repeater {
+                                    model: [
+                                        { key: "SPACE", action: "Lock / Unlock active MilkDrop visual preset" },
+                                        { key: "N", action: "Advance to Next visual preset" },
+                                        { key: "P", action: "Return to Previous visual preset" },
+                                        { key: "R", action: "Select Random visual preset" },
+                                        { key: "F / F11", action: "Toggle Fullscreen visualizer mode" },
+                                        { key: "CTRL + C", action: "Copy playing preset filename to clipboard" },
+                                        { key: "L", action: "Like / Favorite playing preset" },
+                                        { key: "ESC", action: "Exit Fullscreen / Close modal" }
+                                    ]
 
-                            Text {
-                                text: "Presets library containing 9,000+ MilkDrop presets pre-configured."
-                                color: theme.textMuted
-                                font.family: theme.technicalFont
-                                font.pixelSize: 8
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 8
+
+                                        Rectangle {
+                                            implicitWidth: 68
+                                            implicitHeight: 22
+                                            radius: 4
+                                            color: "#121b1f"
+                                            border.color: theme.cyan
+                                            border.width: 1
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: modelData.key
+                                                color: theme.cyanBright
+                                                font.family: theme.technicalFont
+                                                font.pixelSize: 8
+                                                font.weight: Font.Bold
+                                            }
+                                        }
+
+                                        Text {
+                                            text: modelData.action
+                                            color: theme.textSoft
+                                            font.family: theme.uiFont
+                                            font.pixelSize: 9
+                                            elide: Text.ElideRight
+                                            Layout.fillWidth: true
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -499,7 +323,7 @@ Rectangle {
                 Layout.fillWidth: true
 
                 Text {
-                    text: "MAGNETOFON ST-8000 VISUALS ENGINE V4.2"
+                    text: "MAGNETOFON ST-8000  •  PROJECTM / MILKDROP V4.2 NATIVE"
                     color: theme.textMuted
                     font.family: theme.technicalFont
                     font.pixelSize: 8
