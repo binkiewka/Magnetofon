@@ -11,4 +11,9 @@ visuals/*.zip
 vendor/
 _plugin_extract/
 resources/projectm/build/
+resources/mpv/linux-x64/runtime/
 src-tauri/target/
+build/
+src-cpp/build/
+*.o
+

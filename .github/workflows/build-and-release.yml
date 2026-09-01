@@ -42,6 +42,9 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: Prepare bundled mpv runtime
+        run: npm run prepare:linux-audio
+
       - name: Lint Code
         run: npm run lint
 
@@ -58,6 +61,8 @@ jobs:
           mkdir -p AppDir/usr/bin AppDir/usr/lib/Magnetofon/_up_/resources AppDir/usr/lib/Magnetofon/_up_/visuals AppDir/usr/share/icons/hicolor/512x512/apps src-tauri/target/release/bundle/appimage
           cp src-tauri/target/release/magnetofon AppDir/usr/bin/
           cp -a resources/projectm AppDir/usr/lib/Magnetofon/_up_/resources/
+          mkdir -p AppDir/usr/lib/Magnetofon/_up_/resources/mpv/linux-x64
+          cp -a resources/mpv/linux-x64/runtime AppDir/usr/lib/Magnetofon/_up_/resources/mpv/linux-x64/
           cp -a visuals/curated AppDir/usr/lib/Magnetofon/_up_/visuals/
           cp visuals/visuals.json AppDir/usr/lib/Magnetofon/_up_/visuals/
           cp src-tauri/icons/icon.png AppDir/magnetofon.png

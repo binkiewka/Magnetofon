@@ -1,0 +1,23 @@
+<RCC>
+    <qresource prefix="/">
+        <file>ui/qml/main.qml</file>
+        <file>ui/qml/Theme.qml</file>
+        <file>ui/qml/Screw.qml</file>
+        <file>ui/qml/PanelHeader.qml</file>
+        <file>ui/qml/CassetteReel.qml</file>
+        <file>ui/qml/HifiPanel.qml</file>
+        <file>ui/qml/HifiButton.qml</file>
+        <file>ui/qml/EqSlider.qml</file>
+        <file>ui/qml/Knob.qml</file>
+        <file>ui/qml/AmplifierPanel.qml</file>
+        <file>ui/qml/VuMeterPanel.qml</file>
+        <file>ui/qml/EqualizerPanel.qml</file>
+        <file>ui/qml/ProgramMonitorPanel.qml</file>
+        <file>ui/qml/CassettePanel.qml</file>
+        <file>ui/qml/CassetteDeck.qml</file>
+        <file>ui/qml/SpectrumAnalyzer.qml</file>
+        <file>ui/qml/PlaylistPanel.qml</file>
+        <file alias="resources/icon.png">../resources/icon.png</file>
+        <file alias="resources/icon-256.png">../resources/icon-256.png</file>
+    </qresource>
+</RCC>

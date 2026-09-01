@@ -1,2 +1,0 @@
-export const PLACEHOLDER_ALBUM_ART =
-  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='1.5'><rect x='2' y='4' width='20' height='16' rx='2' fill='%230f172a'/><circle cx='8' cy='12' r='3' stroke='%2360a5fa'/><circle cx='16' cy='12' r='3' stroke='%2360a5fa'/><path d='M8 15h8' stroke='%233b82f6'/></svg>"
