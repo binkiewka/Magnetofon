@@ -155,27 +155,37 @@ ApplicationWindow {
                     RowLayout {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        spacing: 6
+                        spacing: 5
 
-                        HifiButton { text: "VISUALS"; iconSymbol: "◇" }
+                        HifiButton {
+                            text: "VISUALS"
+                            iconSymbol: "◇"
+                            isCompact: true
+                            isPrimary: visualizerLauncher.isRunning
+                            onClicked: visualizerLauncher.toggleVisuals()
+                        }
                         HifiButton {
                             text: "VIS CTRL"
                             iconSymbol: "⛭"
+                            isCompact: true
                             isPrimary: visualsModal.visible
                             onClicked: visualsModal.visible = !visualsModal.visible
                         }
                         HifiButton {
                             text: "—"
-                            implicitWidth: 30
+                            isCompact: true
+                            implicitWidth: 26
                             onClicked: window.showMinimized()
                         }
                         HifiButton {
                             text: "×"
-                            implicitWidth: 30
+                            isCompact: true
+                            implicitWidth: 26
                             isStop: true
                             onClicked: window.close()
                         }
                     }
+
                 }
 
 

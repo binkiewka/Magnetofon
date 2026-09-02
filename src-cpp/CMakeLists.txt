@@ -57,6 +57,7 @@ set(SOURCES
     audio/TrackMetadataReader.cpp
     models/PlaylistModel.cpp
     models/PresetPackDownloader.cpp
+    models/VisualizerLauncher.cpp
     ui/VuMeterItem.cpp
 )
 
@@ -66,8 +67,10 @@ set(HEADERS
     audio/TrackMetadataReader.hpp
     models/PlaylistModel.hpp
     models/PresetPackDownloader.hpp
+    models/VisualizerLauncher.hpp
     ui/VuMeterItem.hpp
 )
+
 
 set(RESOURCES
     qml.qrc
