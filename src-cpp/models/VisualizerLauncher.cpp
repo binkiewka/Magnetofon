@@ -340,6 +340,7 @@ QStringList VisualizerLauncher::buildArguments() const
     }
 
     args << QStringLiteral("--enableSplash=0")
+         << QStringLiteral("--window.borderless=1")
          << QStringLiteral("--shuffleEnabled=%1").arg(m_shuffleEnabled ? 1 : 0)
          << QStringLiteral("--fps=%1").arg(m_targetFps)
          << QStringLiteral("--presetDuration=%1").arg(m_presetDuration)
@@ -349,6 +350,7 @@ QStringList VisualizerLauncher::buildArguments() const
          << QStringLiteral("--hardCutSensitivity=%1").arg(QString::number(m_hardCutSensitivity, 'f', 1))
          << QStringLiteral("--hardCutDuration=%1").arg(m_hardCutDuration);
     return args;
+
 }
 
 void VisualizerLauncher::toggleVisuals()
