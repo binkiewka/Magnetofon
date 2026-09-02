@@ -6,16 +6,12 @@ Rectangle {
     id: root
     anchors.fill: parent
     z: 999
-    color: "#d905080a" // Dark glass backdrop overlay
+    color: "#e6080b0d"
 
     signal closeRequested()
 
-    property int targetFps: 60
-    property string presetSource: "CURATED"
-
     Theme { id: theme }
 
-    // Prevent click-through to underlying console controls
     MouseArea {
         anchors.fill: parent
         onClicked: {}
@@ -23,10 +19,10 @@ Rectangle {
 
     HifiPanel {
         id: container
-        width: Math.min(840, parent.width - 40)
-        height: Math.min(620, parent.height - 40)
+        width: Math.min(930, parent.width - 28)
+        height: Math.min(680, parent.height - 28)
         anchors.centerIn: parent
-        title: "VISUALS & PERFORMANCE ENGINE"
+        title: "VISUALS CONTROL"
 
         ColumnLayout {
             anchors.fill: parent
@@ -35,185 +31,124 @@ Rectangle {
 
             PanelHeader {
                 Layout.fillWidth: true
-                title: "VISUALS & PERFORMANCE ENGINE"
-                iconText: "⛭"
+                title: "VISUALS CONTROL & AUDIO REACTIVITY ENGINE"
+                iconText: "◇"
 
                 HifiButton {
                     text: "×"
                     isStop: true
                     isCompact: true
+                    implicitWidth: 28
                     onClicked: root.closeRequested()
                 }
             }
 
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: 62
+                radius: 6
+                color: "#091014"
+                border.color: visualizerLauncher.isRunning ? "#285d50" : "#3b2c31"
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: 11
+                    spacing: 11
+
+                    Rectangle {
+                        width: 12
+                        height: 12
+                        radius: 6
+                        color: visualizerLauncher.isRunning ? "#2ee59d" : theme.red
+
+                        SequentialAnimation on opacity {
+                            running: visualizerLauncher.isRunning
+                            loops: Animation.Infinite
+                            NumberAnimation { to: 0.42; duration: 850 }
+                            NumberAnimation { to: 1.0; duration: 850 }
+                        }
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+
+                        Text {
+                            text: visualizerLauncher.isRunning ? "NATIVE PROJECTM · RUNNING" : "NATIVE PROJECTM · STOPPED"
+                            color: visualizerLauncher.isRunning ? "#67f3b9" : theme.red
+                            font.family: theme.technicalFont
+                            font.pixelSize: 9
+                            font.weight: Font.Bold
+                            font.letterSpacing: 1.0
+                        }
+
+                        Text {
+                            text: visualizerLauncher.currentPresetName !== ""
+                                  ? "NOW PLAYING  ·  " + visualizerLauncher.currentPresetName
+                                  : visualizerLauncher.statusMessage
+                            color: theme.textSoft
+                            font.family: theme.uiFont
+                            font.pixelSize: 9
+                            elide: Text.ElideRight
+                            Layout.fillWidth: true
+                        }
+
+                        Text {
+                            text: visualizerLauncher.isRunning ? visualizerLauncher.statusMessage : "Settings are saved automatically"
+                            color: theme.textMuted
+                            font.family: theme.technicalFont
+                            font.pixelSize: 7
+                            elide: Text.ElideRight
+                            Layout.fillWidth: true
+                        }
+                    }
+
+                    HifiButton {
+                        text: visualizerLauncher.isRunning ? "STOP VISUALS" : "LAUNCH VISUALS"
+                        iconSymbol: visualizerLauncher.isRunning ? "■" : "▶"
+                        isPrimary: !visualizerLauncher.isRunning
+                        isStop: visualizerLauncher.isRunning
+                        onClicked: visualizerLauncher.toggleVisuals()
+                    }
+                }
+            }
+
             ScrollView {
+                id: scroll
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 clip: true
                 ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                ScrollBar.vertical.policy: ScrollBar.AsNeeded
 
                 ColumnLayout {
-                    width: container.width - 48
-                    spacing: 12
+                    width: scroll.availableWidth - 8
+                    spacing: 11
 
-                    // Card 1: GPU Performance & FPS Limiter
                     Rectangle {
                         Layout.fillWidth: true
-                        implicitHeight: card1Col.implicitHeight + 20
+                        implicitHeight: libraryColumn.implicitHeight + 22
                         radius: 7
-                        color: "#070c0f"
-                        border.color: "#1d2e35"
-                        border.width: 1
+                        color: "#080e11"
+                        border.color: "#1d353e"
 
                         ColumnLayout {
-                            id: card1Col
+                            id: libraryColumn
                             anchors.fill: parent
-                            anchors.margins: 12
-                            spacing: 8
-
-                            Text {
-                                text: "GPU RENDER RATE & FPS LIMITER"
-                                color: theme.cyanBright
-                                font.family: theme.technicalFont
-                                font.pixelSize: 9
-                                font.weight: Font.Bold
-                                font.letterSpacing: 1.2
-                            }
-
-                            Text {
-                                text: "Select target frame rate for low-spec GPUs, laptops, or power efficiency."
-                                color: theme.textMuted
-                                font.family: theme.technicalFont
-                                font.pixelSize: 8
-                            }
-
-                            RowLayout {
-                                Layout.fillWidth: true
-                                spacing: 6
-
-                                Repeater {
-                                    model: [
-                                        { label: "30 FPS (ECO)", value: 30 },
-                                        { label: "60 FPS (DEFAULT)", value: 60 },
-                                        { label: "120 FPS (HIGH HZ)", value: 120 },
-                                        { label: "MAX / UNLIMITED", value: 0 }
-                                    ]
-
-                                    HifiButton {
-                                        text: modelData.label
-                                        isCompact: true
-                                        isPrimary: visualizerLauncher.targetFps === modelData.value
-                                        Layout.fillWidth: true
-                                        onClicked: visualizerLauncher.targetFps = modelData.value
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Card 2: Preset Rotation & Blend Timings
-                    Rectangle {
-                        Layout.fillWidth: true
-                        implicitHeight: card2Col.implicitHeight + 20
-                        radius: 7
-                        color: "#070c0f"
-                        border.color: "#1d2e35"
-                        border.width: 1
-
-                        ColumnLayout {
-                            id: card2Col
-                            anchors.fill: parent
-                            anchors.margins: 12
-                            spacing: 8
-
-                            Text {
-                                text: "PRESET ROTATION & BLEND TIMINGS"
-                                color: theme.cyanBright
-                                font.family: theme.technicalFont
-                                font.pixelSize: 9
-                                font.weight: Font.Bold
-                                font.letterSpacing: 1.2
-                            }
-
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Text {
-                                    text: "Auto-Switch Interval"
-                                    color: theme.text
-                                    font.family: theme.uiFont
-                                    font.pixelSize: 9
-                                    Layout.fillWidth: true
-                                }
-                                Rectangle {
-                                    implicitWidth: 40; implicitHeight: 18; radius: 3
-                                    color: "#112630"; border.color: theme.cyan
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: Math.round(rotationSlider.value) + "s"
-                                        color: theme.cyanBright
-                                        font.family: theme.technicalFont
-                                        font.pixelSize: 8
-                                    }
-                                }
-                            }
-
-                            Slider {
-                                id: rotationSlider
-                                Layout.fillWidth: true
-                                from: 2; to: 60; value: visualizerLauncher.presetDuration; stepSize: 1
-                                onMoved: visualizerLauncher.presetDuration = Math.round(value)
-                            }
-
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Text {
-                                    text: "Blend Transition Time"
-                                    color: theme.text
-                                    font.family: theme.uiFont
-                                    font.pixelSize: 9
-                                    Layout.fillWidth: true
-                                }
-                                Rectangle {
-                                    implicitWidth: 40; implicitHeight: 18; radius: 3
-                                    color: "#112630"; border.color: theme.cyan
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: blendSlider.value.toFixed(1) + "s"
-                                        color: theme.cyanBright
-                                        font.family: theme.technicalFont
-                                        font.pixelSize: 8
-                                    }
-                                }
-                            }
-
-                            Slider {
-                                id: blendSlider
-                                Layout.fillWidth: true
-                                from: 0.5; to: 10.0; value: visualizerLauncher.transitionDuration; stepSize: 0.5
-                                onMoved: visualizerLauncher.transitionDuration = value
-                            }
-                        }
-                    }
-
-                    // Card 3: Beat Detector & Hard Cut Reactivity
-                    Rectangle {
-                        Layout.fillWidth: true
-                        implicitHeight: card3Col.implicitHeight + 20
-                        radius: 7
-                        color: "#070c0f"
-                        border.color: "#1d2e35"
-                        border.width: 1
-
-                        ColumnLayout {
-                            id: card3Col
-                            anchors.fill: parent
-                            anchors.margins: 12
+                            anchors.margins: 11
                             spacing: 8
 
                             RowLayout {
                                 Layout.fillWidth: true
+                                spacing: 8
+
                                 Text {
-                                    text: "BEAT DETECTOR & HARD CUTS REACTIVITY"
+                                    text: "▣"
+                                    color: theme.cyanBright
+                                    font.pixelSize: 13
+                                }
+                                Text {
+                                    text: "PRESET LIBRARY"
                                     color: theme.cyanBright
                                     font.family: theme.technicalFont
                                     font.pixelSize: 9
@@ -221,100 +156,31 @@ Rectangle {
                                     font.letterSpacing: 1.2
                                     Layout.fillWidth: true
                                 }
-                                HifiButton {
-                                    text: visualizerLauncher.hardCutsEnabled ? "ENABLED" : "DISABLED"
-                                    isPowerOn: visualizerLauncher.hardCutsEnabled
-                                    isCompact: true
-                                    onClicked: visualizerLauncher.hardCutsEnabled = !visualizerLauncher.hardCutsEnabled
-                                }
-                            }
-
-                            RowLayout {
-                                Layout.fillWidth: true
-                                opacity: visualizerLauncher.hardCutsEnabled ? 1.0 : 0.4
-                                Text {
-                                    text: "Hard Cut Sensitivity"
-                                    color: theme.text
-                                    font.family: theme.uiFont
-                                    font.pixelSize: 9
-                                    Layout.fillWidth: true
-                                }
                                 Rectangle {
-                                    implicitWidth: 40; implicitHeight: 18; radius: 3
-                                    color: "#112630"; border.color: theme.cyan
+                                    implicitWidth: sourceText.implicitWidth + 16
+                                    implicitHeight: 20
+                                    radius: 3
+                                    color: "#10242c"
+                                    border.color: "#235b70"
                                     Text {
+                                        id: sourceText
                                         anchors.centerIn: parent
-                                        text: cutSensSlider.value.toFixed(1) + "x"
+                                        text: visualizerLauncher.presetCount + " ACTIVE"
                                         color: theme.cyanBright
                                         font.family: theme.technicalFont
-                                        font.pixelSize: 8
+                                        font.pixelSize: 7
+                                        font.weight: Font.Bold
                                     }
                                 }
                             }
-
-                            Slider {
-                                id: cutSensSlider
-                                Layout.fillWidth: true
-                                enabled: visualizerLauncher.hardCutsEnabled
-                                from: 0.1; to: 5.0; value: visualizerLauncher.hardCutSensitivity; stepSize: 0.1
-                                onMoved: visualizerLauncher.hardCutSensitivity = value
-                            }
-
-                            RowLayout {
-                                Layout.fillWidth: true
-                                opacity: visualizerLauncher.hardCutsEnabled ? 1.0 : 0.4
-                                Text {
-                                    text: "Minimum Time Between Hard Cuts"
-                                    color: theme.text
-                                    font.family: theme.uiFont
-                                    font.pixelSize: 9
-                                    Layout.fillWidth: true
-                                }
-                                Rectangle {
-                                    implicitWidth: 40; implicitHeight: 18; radius: 3
-                                    color: "#112630"; border.color: theme.cyan
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: Math.round(cutDurationSlider.value) + "s"
-                                        color: theme.cyanBright
-                                        font.family: theme.technicalFont
-                                        font.pixelSize: 8
-                                    }
-                                }
-                            }
-
-                            Slider {
-                                id: cutDurationSlider
-                                Layout.fillWidth: true
-                                enabled: visualizerLauncher.hardCutsEnabled
-                                from: 2; to: 60; value: visualizerLauncher.hardCutDuration; stepSize: 2
-                                onMoved: visualizerLauncher.hardCutDuration = Math.round(value)
-                            }
-                        }
-                    }
-
-                    // Card 4: Preset Source Selector & Downloader
-                    Rectangle {
-                        Layout.fillWidth: true
-                        implicitHeight: card4Col.implicitHeight + 20
-                        radius: 7
-                        color: "#070c0f"
-                        border.color: "#1d2e35"
-                        border.width: 1
-
-                        ColumnLayout {
-                            id: card4Col
-                            anchors.fill: parent
-                            anchors.margins: 12
-                            spacing: 8
 
                             Text {
-                                text: "VISUAL PRESET LIBRARY & DOWNLOADER"
-                                color: theme.cyanBright
-                                font.family: theme.technicalFont
-                                font.pixelSize: 9
-                                font.weight: Font.Bold
-                                font.letterSpacing: 1.2
+                                text: "Choose the folder scanned by projectM. Curated is the bundled, quality-checked set; Full uses the downloaded 9k+ library."
+                                color: theme.textMuted
+                                font.family: theme.uiFont
+                                font.pixelSize: 8
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
                             }
 
                             RowLayout {
@@ -322,50 +188,57 @@ Rectangle {
                                 spacing: 8
 
                                 HifiButton {
-                                    text: "CURATED PRESETS (50 PRESETS)"
+                                    text: "CURATED · " + visualizerLauncher.curatedPresetCount + " PRESETS"
                                     iconSymbol: "★"
-                                    isCompact: true
                                     isPrimary: visualizerLauncher.presetSource === "CURATED"
+                                    enabled: visualizerLauncher.curatedPresetCount > 0
                                     Layout.fillWidth: true
                                     onClicked: visualizerLauncher.presetSource = "CURATED"
                                 }
 
                                 HifiButton {
-                                    text: "ALL 9,000+ PRESETS LIBRARY"
-                                    iconSymbol: "🌐"
-                                    isCompact: true
+                                    text: visualizerLauncher.fullLibraryAvailable
+                                          ? "FULL LIBRARY · " + visualizerLauncher.fullPresetCount + " PRESETS"
+                                          : "FULL LIBRARY · NOT INSTALLED"
+                                    iconSymbol: "◎"
                                     isPrimary: visualizerLauncher.presetSource === "ALL"
+                                    enabled: visualizerLauncher.fullLibraryAvailable
                                     Layout.fillWidth: true
                                     onClicked: visualizerLauncher.presetSource = "ALL"
                                 }
                             }
 
-
                             RowLayout {
                                 Layout.fillWidth: true
+                                spacing: 8
 
-                                Text {
-                                    text: presetPackDownloader.statusMessage
-                                    color: theme.textMuted
-                                    font.family: theme.technicalFont
-                                    font.pixelSize: 8
-                                    elide: Text.ElideRight
+                                ColumnLayout {
                                     Layout.fillWidth: true
-                                }
-
-                                Rectangle {
-                                    implicitWidth: 94; implicitHeight: 18; radius: 3
-                                    color: presetPackDownloader.isInstalled ? "#143a29" : "#3b2210"
-                                    border.color: presetPackDownloader.isInstalled ? "#2ee59d" : "#f59e0b"
-
+                                    spacing: 2
                                     Text {
-                                        anchors.centerIn: parent
-                                        text: presetPackDownloader.isInstalled ? "INSTALLED" : "NOT INSTALLED"
-                                        color: presetPackDownloader.isInstalled ? "#2ee59d" : "#f59e0b"
+                                        text: presetPackDownloader.statusMessage
+                                        color: presetPackDownloader.isInstalled ? "#55dca8" : theme.textSoft
+                                        font.family: theme.uiFont
+                                        font.pixelSize: 8
+                                        elide: Text.ElideRight
+                                        Layout.fillWidth: true
+                                    }
+                                    Text {
+                                        text: visualizerLauncher.activePresetDirectory
+                                        color: theme.textMuted
                                         font.family: theme.technicalFont
                                         font.pixelSize: 7
-                                        font.weight: Font.Bold
+                                        elide: Text.ElideMiddle
+                                        Layout.fillWidth: true
                                     }
+                                }
+
+                                HifiButton {
+                                    text: presetPackDownloader.isInstalled ? "REINSTALL FULL PACK" : "DOWNLOAD FULL PACK · 138 MB"
+                                    iconSymbol: "↓"
+                                    isCompact: true
+                                    enabled: !presetPackDownloader.isDownloading
+                                    onClicked: presetPackDownloader.downloadPack()
                                 }
                             }
 
@@ -374,36 +247,239 @@ Rectangle {
                                 visible: presetPackDownloader.isDownloading
                                 value: presetPackDownloader.progress
                             }
+                        }
+                    }
 
-                            HifiButton {
-                                text: presetPackDownloader.isInstalled ? "REINSTALL 9,000+ PRESETS PACK (138 MB)" : "DOWNLOAD 9,000+ MILKDROP PRESETS PACK (138 MB)"
-                                iconSymbol: "⬇"
-                                isPrimary: !presetPackDownloader.isInstalled
-                                isCompact: true
-                                enabled: !presetPackDownloader.isDownloading
-                                onClicked: presetPackDownloader.downloadPack()
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: timingColumn.implicitHeight + 22
+                        radius: 7
+                        color: "#080e11"
+                        border.color: "#1d353e"
+
+                        ColumnLayout {
+                            id: timingColumn
+                            anchors.fill: parent
+                            anchors.margins: 11
+                            spacing: 7
+
+                            RowLayout {
                                 Layout.fillWidth: true
+                                Text {
+                                    text: "◷  DISPLAY TIMING & ROTATION"
+                                    color: theme.cyanBright
+                                    font.family: theme.technicalFont
+                                    font.pixelSize: 9
+                                    font.weight: Font.Bold
+                                    font.letterSpacing: 1.2
+                                    Layout.fillWidth: true
+                                }
+                                HifiButton {
+                                    text: visualizerLauncher.shuffleEnabled ? "SHUFFLE ON" : "SEQUENTIAL"
+                                    iconSymbol: visualizerLauncher.shuffleEnabled ? "↝" : "→"
+                                    isPowerOn: visualizerLauncher.shuffleEnabled
+                                    isCompact: true
+                                    onClicked: visualizerLauncher.shuffleEnabled = !visualizerLauncher.shuffleEnabled
+                                }
+                            }
+
+                            Text {
+                                text: "Rotation always advances automatically. Shuffle changes only the order; switch it off to play presets alphabetically."
+                                color: theme.textMuted
+                                font.family: theme.uiFont
+                                font.pixelSize: 8
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+
+                            VisualSettingSlider {
+                                Layout.fillWidth: true
+                                label: "Preset duration"
+                                description: "How long each preset stays on screen before the next automatic switch."
+                                from: 3
+                                to: 120
+                                stepSize: 1
+                                decimals: 0
+                                suffix: " s"
+                                value: visualizerLauncher.presetDuration
+                                onValueCommitted: function(newValue) { visualizerLauncher.presetDuration = Math.round(newValue) }
+                            }
+
+                            VisualSettingSlider {
+                                Layout.fillWidth: true
+                                label: "Transition duration"
+                                description: "Crossfade time for normal preset changes. Hard cuts skip this blend."
+                                from: 0
+                                to: Math.min(10, visualizerLauncher.presetDuration - 0.5)
+                                stepSize: 0.5
+                                decimals: 1
+                                suffix: " s"
+                                value: visualizerLauncher.transitionDuration
+                                onValueCommitted: function(newValue) { visualizerLauncher.transitionDuration = newValue }
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 10
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+                                    Text {
+                                        text: "Target frame rate"
+                                        color: theme.text
+                                        font.family: theme.uiFont
+                                        font.pixelSize: 10
+                                        font.weight: Font.DemiBold
+                                    }
+                                    Text {
+                                        text: "30 saves power · 60 is recommended · Unlimited follows the renderer/v-sync limit."
+                                        color: theme.textMuted
+                                        font.family: theme.uiFont
+                                        font.pixelSize: 8
+                                    }
+                                }
+
+                                Repeater {
+                                    model: [
+                                        { label: "30", value: 30 },
+                                        { label: "60", value: 60 },
+                                        { label: "120", value: 120 },
+                                        { label: "MAX", value: 0 }
+                                    ]
+                                    HifiButton {
+                                        text: modelData.label
+                                        isCompact: true
+                                        isPrimary: visualizerLauncher.targetFps === modelData.value
+                                        onClicked: visualizerLauncher.targetFps = modelData.value
+                                    }
+                                }
                             }
                         }
                     }
 
-                    // Card 5: Keyboard & Mouse Control Reference Guide
                     Rectangle {
                         Layout.fillWidth: true
-                        implicitHeight: card5Col.implicitHeight + 20
+                        implicitHeight: reactivityColumn.implicitHeight + 22
                         radius: 7
-                        color: "#070c0f"
-                        border.color: "#1d2e35"
-                        border.width: 1
+                        color: "#080e11"
+                        border.color: "#1d353e"
 
                         ColumnLayout {
-                            id: card5Col
+                            id: reactivityColumn
                             anchors.fill: parent
-                            anchors.margins: 12
-                            spacing: 10
+                            anchors.margins: 11
+                            spacing: 7
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Text {
+                                    text: "⌁  MUSIC REACTIVITY & HARD CUTS"
+                                    color: theme.cyanBright
+                                    font.family: theme.technicalFont
+                                    font.pixelSize: 9
+                                    font.weight: Font.Bold
+                                    font.letterSpacing: 1.2
+                                    Layout.fillWidth: true
+                                }
+                                HifiButton {
+                                    text: visualizerLauncher.hardCutsEnabled ? "HARD CUTS ON" : "HARD CUTS OFF"
+                                    isPowerOn: visualizerLauncher.hardCutsEnabled
+                                    isCompact: true
+                                    onClicked: visualizerLauncher.hardCutsEnabled = !visualizerLauncher.hardCutsEnabled
+                                }
+                            }
 
                             Text {
-                                text: "KEYBOARD CONTROL SHORTCUTS REFERENCE"
+                                text: "Audio source  ·  " + (visualizerLauncher.audioSourceName !== ""
+                                      ? visualizerLauncher.audioSourceName
+                                      : "system output monitor (resolved when visuals launch)")
+                                color: theme.textMuted
+                                font.family: theme.technicalFont
+                                font.pixelSize: 7
+                                elide: Text.ElideMiddle
+                                Layout.fillWidth: true
+                            }
+
+                            VisualSettingSlider {
+                                Layout.fillWidth: true
+                                label: "Beat sensitivity"
+                                description: "Amplifies the beat signal used inside presets. Higher values make pulsing, zoom and movement react more strongly."
+                                from: 0
+                                to: 2
+                                stepSize: 0.1
+                                decimals: 1
+                                suffix: "×"
+                                value: visualizerLauncher.beatSensitivity
+                                onValueCommitted: function(newValue) { visualizerLauncher.beatSensitivity = newValue }
+                            }
+
+                            VisualSettingSlider {
+                                Layout.fillWidth: true
+                                enabled: visualizerLauncher.hardCutsEnabled
+                                dimmed: !visualizerLauncher.hardCutsEnabled
+                                label: "Hard-cut threshold"
+                                description: "Volume jump required for an instant scene cut. Lower values cut more often; higher values need a stronger hit."
+                                from: 0.1
+                                to: 5
+                                stepSize: 0.1
+                                decimals: 1
+                                suffix: "×"
+                                value: visualizerLauncher.hardCutSensitivity
+                                onValueCommitted: function(newValue) { visualizerLauncher.hardCutSensitivity = newValue }
+                            }
+
+                            VisualSettingSlider {
+                                Layout.fillWidth: true
+                                enabled: visualizerLauncher.hardCutsEnabled
+                                dimmed: !visualizerLauncher.hardCutsEnabled
+                                label: "Hard-cut cooldown"
+                                description: "Minimum age of the current preset before a strong beat may trigger a cut. Normal timed rotation is separate."
+                                from: 2
+                                to: Math.max(2, visualizerLauncher.presetDuration - 1)
+                                stepSize: 1
+                                decimals: 0
+                                suffix: " s"
+                                value: visualizerLauncher.hardCutDuration
+                                onValueCommitted: function(newValue) { visualizerLauncher.hardCutDuration = Math.round(newValue) }
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                implicitHeight: 30
+                                radius: 4
+                                color: "#0e1c21"
+                                border.color: "#214653"
+
+                                Text {
+                                    anchors.fill: parent
+                                    anchors.margins: 7
+                                    text: "Hard cuts only happen after the cooldown and on a strong enough audio peak. They do not replace the preset-duration timer."
+                                    color: theme.textSoft
+                                    font.family: theme.uiFont
+                                    font.pixelSize: 8
+                                    verticalAlignment: Text.AlignVCenter
+                                    wrapMode: Text.WordWrap
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: shortcutsColumn.implicitHeight + 22
+                        radius: 7
+                        color: "#080e11"
+                        border.color: "#1d353e"
+
+                        ColumnLayout {
+                            id: shortcutsColumn
+                            anchors.fill: parent
+                            anchors.margins: 11
+                            spacing: 8
+
+                            Text {
+                                text: "⌨  LIVE VISUALIZER SHORTCUTS"
                                 color: theme.cyanBright
                                 font.family: theme.technicalFont
                                 font.pixelSize: 9
@@ -415,49 +491,53 @@ Rectangle {
                                 Layout.fillWidth: true
                                 columns: 2
                                 rowSpacing: 6
-                                columnSpacing: 12
+                                columnSpacing: 10
 
                                 Repeater {
                                     model: [
-                                        { key: "SPACE", action: "Lock / Unlock active MilkDrop visual preset" },
-                                        { key: "N", action: "Advance to Next visual preset" },
-                                        { key: "P", action: "Return to Previous visual preset" },
-                                        { key: "R", action: "Select Random visual preset" },
-                                        { key: "F / F11", action: "Toggle Fullscreen visualizer mode" },
-                                        { key: "CTRL + C", action: "Copy playing preset filename to clipboard" },
-                                        { key: "L", action: "Like / Favorite playing preset" },
-                                        { key: "ESC", action: "Exit Fullscreen / Close modal" }
+                                        { key: "N / P", action: "Next / previous preset" },
+                                        { key: "R", action: "Jump to a random preset" },
+                                        { key: "SPACE", action: "Lock / unlock automatic changes" },
+                                        { key: "F / F11", action: "Toggle fullscreen" },
+                                        { key: "CTRL + C", action: "Copy current preset path" },
+                                        { key: "ESC", action: "Leave fullscreen" }
                                     ]
 
-                                    RowLayout {
+                                    Rectangle {
                                         Layout.fillWidth: true
-                                        spacing: 8
+                                        implicitHeight: 29
+                                        radius: 4
+                                        color: "#0b1418"
+                                        border.color: "#193441"
 
-                                        Rectangle {
-                                            implicitWidth: 68
-                                            implicitHeight: 20
-                                            radius: 4
-                                            color: "#121b1f"
-                                            border.color: theme.cyan
-                                            border.width: 1
-
-                                            Text {
-                                                anchors.centerIn: parent
-                                                text: modelData.key
-                                                color: theme.cyanBright
-                                                font.family: theme.technicalFont
-                                                font.pixelSize: 8
-                                                font.weight: Font.Bold
+                                        RowLayout {
+                                            anchors.fill: parent
+                                            anchors.margins: 5
+                                            spacing: 8
+                                            Rectangle {
+                                                implicitWidth: Math.max(58, keyLabel.implicitWidth + 14)
+                                                implicitHeight: 19
+                                                radius: 3
+                                                color: "#10232b"
+                                                border.color: "#22728e"
+                                                Text {
+                                                    id: keyLabel
+                                                    anchors.centerIn: parent
+                                                    text: modelData.key
+                                                    color: theme.cyanBright
+                                                    font.family: theme.technicalFont
+                                                    font.pixelSize: 7
+                                                    font.weight: Font.Bold
+                                                }
                                             }
-                                        }
-
-                                        Text {
-                                            text: modelData.action
-                                            color: theme.textSoft
-                                            font.family: theme.uiFont
-                                            font.pixelSize: 9
-                                            elide: Text.ElideRight
-                                            Layout.fillWidth: true
+                                            Text {
+                                                text: modelData.action
+                                                color: theme.textSoft
+                                                font.family: theme.uiFont
+                                                font.pixelSize: 8
+                                                elide: Text.ElideRight
+                                                Layout.fillWidth: true
+                                            }
                                         }
                                     }
                                 }
@@ -467,19 +547,19 @@ Rectangle {
                 }
             }
 
-            // Footer Bar
             RowLayout {
                 Layout.fillWidth: true
+                spacing: 8
 
                 Text {
-                    text: "MAGNETOFON ST-8000  •  PROJECTM / MILKDROP V4.2 NATIVE"
+                    text: visualizerLauncher.isRunning
+                          ? "Changes restart the visualizer once after the control is released"
+                          : "Settings saved · launch visuals when ready"
                     color: theme.textMuted
                     font.family: theme.technicalFont
-                    font.pixelSize: 8
-                    font.letterSpacing: 0.8
+                    font.pixelSize: 7
+                    Layout.fillWidth: true
                 }
-
-                Item { Layout.fillWidth: true }
 
                 HifiButton {
                     text: "DONE / CLOSE"

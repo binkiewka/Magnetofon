@@ -2,6 +2,7 @@
 
 #include "AudioPlayer.hpp"
 #include "PlaylistModel.hpp"
+#include "VisualizerLauncher.hpp"
 
 #include <QDataStream>
 #include <QDir>
@@ -199,6 +200,41 @@ private slots:
         playlist.clear();
         QTRY_VERIFY_WITH_TIMEOUT(!player.isPlaying(), 1000);
         QVERIFY(!player.hasLoadedMedia());
+    }
+
+    void visualizerUsesCuratedLibraryAndCompleteLaunchSettings()
+    {
+        VisualizerLauncher launcher(nullptr, false);
+
+        QVERIFY2(launcher.curatedPresetCount() >= 100,
+                 qPrintable(QStringLiteral("Expected the curated visual library, found %1 presets in %2")
+                                .arg(launcher.curatedPresetCount())
+                                .arg(launcher.activePresetDirectory())));
+        QVERIFY(launcher.activePresetDirectory().endsWith(QStringLiteral("/visuals/curated/presets")));
+
+        launcher.setTargetFps(0);
+        launcher.setPresetDuration(8);
+        launcher.setTransitionDuration(20.0);
+        launcher.setBeatSensitivity(9.0);
+        launcher.setHardCutDuration(99);
+
+        QCOMPARE(launcher.transitionDuration(), 7.5);
+        QCOMPARE(launcher.beatSensitivity(), 2.0);
+        QCOMPARE(launcher.hardCutDuration(), 7);
+
+        const QStringList arguments = launcher.buildArguments();
+        QVERIFY(arguments.contains(QStringLiteral("--enableSplash=0")));
+        QVERIFY(arguments.contains(QStringLiteral("--shuffleEnabled=1")));
+        QVERIFY(arguments.contains(QStringLiteral("--fps=0")));
+        QVERIFY(arguments.contains(QStringLiteral("--presetDuration=8")));
+        QVERIFY(arguments.contains(QStringLiteral("--transitionDuration=7.5")));
+        QVERIFY(arguments.contains(QStringLiteral("--beatSensitivity=2.0")));
+        QVERIFY(arguments.contains(QStringLiteral("--hardCutDuration=7")));
+
+        launcher.setPresetSource(QStringLiteral("ALL"));
+        if (!launcher.fullLibraryAvailable()) {
+            QCOMPARE(launcher.presetSource(), QStringLiteral("CURATED"));
+        }
     }
 };
 

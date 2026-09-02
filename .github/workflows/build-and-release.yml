@@ -64,8 +64,10 @@ jobs:
 
       - name: Package Linux AppImage & DEB
         run: |
-          mkdir -p AppDir/usr/bin AppDir/usr/share/icons/hicolor/256x256/apps release-artifacts
+          mkdir -p AppDir/usr/bin AppDir/usr/libexec/magnetofon AppDir/usr/share/magnetofon/visuals AppDir/usr/share/icons/hicolor/256x256/apps release-artifacts
           cp src-cpp/build/MagnetofonNative AppDir/usr/bin/
+          cp -a resources/projectm/linux-x64 AppDir/usr/libexec/magnetofon/projectm
+          cp -a visuals/curated AppDir/usr/share/magnetofon/visuals/curated
           cp resources/icon-256.png AppDir/magnetofon.png
           cp resources/icon-256.png AppDir/usr/share/icons/hicolor/256x256/apps/magnetofon.png
           cp src-cpp/packaging/magnetofon.desktop AppDir/magnetofon.desktop
@@ -84,6 +86,7 @@ jobs:
           ./linuxdeploy-x86_64.AppImage \
             --appdir AppDir \
             --executable AppDir/usr/bin/MagnetofonNative \
+            --executable AppDir/usr/libexec/magnetofon/projectm/bin/projectMSDL \
             --desktop-file AppDir/magnetofon.desktop \
             --icon-file AppDir/magnetofon.png \
             --plugin qt \
@@ -225,4 +228,3 @@ jobs:
           fi
 
           gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
-

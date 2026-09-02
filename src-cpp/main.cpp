@@ -88,6 +88,9 @@ int main(int argc, char *argv[])
     PresetPackDownloader packDownloader;
     VisualizerLauncher visualizerLauncher;
 
+    QObject::connect(&packDownloader, &PresetPackDownloader::isInstalledChanged,
+                     &visualizerLauncher, &VisualizerLauncher::refreshPresetLibrary);
+
     // Connect playlist track selection directly to audio player in C++
 
     QObject::connect(&playlist, &PlaylistModel::trackSelected, &player, [&player](const QString &filePath) {

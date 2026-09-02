@@ -124,6 +124,22 @@ install(FILES ../resources/icon.png
     RENAME magnetofon.png
 )
 
+if(UNIX AND NOT APPLE)
+    install(DIRECTORY ../resources/projectm/linux-x64/
+        DESTINATION ${CMAKE_INSTALL_LIBEXECDIR}/magnetofon/projectm
+        USE_SOURCE_PERMISSIONS
+        PATTERN "include" EXCLUDE
+        PATTERN "cmake" EXCLUDE
+        PATTERN "pkgconfig" EXCLUDE
+        PATTERN "applications" EXCLUDE
+        PATTERN "icons" EXCLUDE
+    )
+    install(DIRECTORY ../visuals/curated/
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/magnetofon/visuals/curated
+        PATTERN "*.zip" EXCLUDE
+    )
+endif()
+
 include(CTest)
 if(BUILD_TESTING)
     find_package(Qt6 REQUIRED COMPONENTS Test)
@@ -134,10 +150,12 @@ if(BUILD_TESTING)
         audio/PulseAudioAnalyzer.cpp
         audio/TrackMetadataReader.cpp
         models/PlaylistModel.cpp
+        models/VisualizerLauncher.cpp
         audio/AudioPlayer.hpp
         audio/PulseAudioAnalyzer.hpp
         audio/TrackMetadataReader.hpp
         models/PlaylistModel.hpp
+        models/VisualizerLauncher.hpp
     )
 
     target_include_directories(MagnetofonTests PRIVATE
@@ -164,5 +182,5 @@ set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "High-Fidelity Audio Console (Native C++ /
 set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "binkiewka <binia@seriouslyclose.com>")
 set(CPACK_DEBIAN_PACKAGE_SECTION "sound")
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6core6, libqt6gui6, libqt6qml6, libqt6quick6, libpulse0")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6core6, libqt6gui6, libqt6qml6, libqt6quick6, libpulse0, libsdl2-2.0-0")
 include(CPack)

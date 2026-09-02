@@ -1,7 +1,28 @@
 #include "PresetPackDownloader.hpp"
 #include <QDebug>
+#include <QDirIterator>
 #include <QFileInfo>
 #include <QUrl>
+
+namespace {
+
+int countPresetsRecursively(const QString &directory)
+{
+    if (!QDir(directory).exists()) return 0;
+
+    QDirIterator iterator(directory,
+                          {QStringLiteral("*.milk"), QStringLiteral("*.prjm")},
+                          QDir::Files,
+                          QDirIterator::Subdirectories);
+    int count = 0;
+    while (iterator.hasNext()) {
+        iterator.next();
+        ++count;
+    }
+    return count;
+}
+
+} // namespace
 
 PresetPackDownloader::PresetPackDownloader(QObject *parent)
     : QObject(parent)
@@ -22,28 +43,18 @@ QString PresetPackDownloader::targetDirectory() const
 void PresetPackDownloader::checkInstallationStatus()
 {
     const QString targetDir = targetDirectory();
-    QDir dir(targetDir);
-
-    // Also check local visuals/ folder
-    QDir localDir("visuals");
-    int milkCount = 0;
-
-    if (dir.exists()) {
-        const QStringList files = dir.entryList(QStringList() << "*.milk", QDir::Files, QDir::Unsorted);
-        milkCount += files.size();
-    }
-    if (localDir.exists()) {
-        const QStringList files = localDir.entryList(QStringList() << "*.milk", QDir::Files, QDir::Unsorted);
-        milkCount += files.size();
-    }
+    const QString localFullLibrary = QDir::current().absoluteFilePath(QStringLiteral("visuals/presets"));
+    const int milkCount = countPresetsRecursively(targetDir) + countPresetsRecursively(localFullLibrary);
 
     m_presetCount = milkCount;
-    m_isInstalled = (milkCount > 100);
+    m_isInstalled = milkCount > 1000;
 
     if (m_isInstalled) {
-        m_statusMessage = QString("%1 MilkDrop presets installed & ready").arg(m_presetCount);
+        m_statusMessage = QString("%1 MilkDrop presets installed and ready").arg(m_presetCount);
     } else {
-        m_statusMessage = "Preset pack not installed. Click below to download 9,000+ presets pack.";
+        m_statusMessage = milkCount > 0
+            ? QString("Only %1 presets found; the full pack is incomplete").arg(milkCount)
+            : QStringLiteral("Full preset pack is not installed");
     }
 
     emit isInstalledChanged();
@@ -145,17 +156,21 @@ void PresetPackDownloader::extractZip(const QString &zipPath, const QString &tar
     process.start("unzip", QStringList() << "-o" << zipPath << "-d" << targetDir);
 #endif
 
-    if (process.waitForFinished(120000)) {
+    if (process.waitForFinished(120000) && process.exitStatus() == QProcess::NormalExit && process.exitCode() == 0) {
         m_progress = 1.0;
         m_isDownloading = false;
         checkInstallationStatus();
-        m_statusMessage = "9,000+ MilkDrop Presets successfully installed & active!";
+        if (m_isInstalled) {
+            m_statusMessage = QString("%1 MilkDrop presets installed and ready").arg(m_presetCount);
+        } else {
+            m_statusMessage = "Extraction finished, but the full preset library was not found";
+        }
         emit isDownloadingChanged();
         emit progressChanged();
         emit statusMessageChanged();
     } else {
         m_isDownloading = false;
-        m_statusMessage = "Extraction timed out or failed. Please check system zip utility.";
+        m_statusMessage = "Preset extraction failed. Check that the unzip utility is installed.";
         emit isDownloadingChanged();
         emit statusMessageChanged();
     }
