@@ -224,6 +224,7 @@ private slots:
 
         const QStringList arguments = launcher.buildArguments();
         QVERIFY(arguments.contains(QStringLiteral("--enableSplash=0")));
+        QVERIFY(!arguments.contains(QStringLiteral("--window.borderless=1")));
         QVERIFY(arguments.contains(QStringLiteral("--shuffleEnabled=1")));
         QVERIFY(arguments.contains(QStringLiteral("--fps=0")));
         QVERIFY(arguments.contains(QStringLiteral("--presetDuration=8")));

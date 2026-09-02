@@ -108,8 +108,9 @@ install(TARGETS MagnetofonNative
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     BUNDLE DESTINATION .
 )
-install(FILES packaging/magnetofon.desktop
+install(FILES packaging/magnetofon-deb.desktop
     DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
+    RENAME magnetofon.desktop
 )
 install(FILES ../resources/icon.png
     DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/1024x1024/apps
@@ -182,5 +183,11 @@ set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "High-Fidelity Audio Console (Native C++ /
 set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "binkiewka <binia@seriouslyclose.com>")
 set(CPACK_DEBIAN_PACKAGE_SECTION "sound")
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "libqt6core6, libqt6gui6, libqt6qml6, libqt6quick6, libpulse0, libsdl2-2.0-0")
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS
+    "${CMAKE_CURRENT_SOURCE_DIR}/../resources/projectm/linux-x64/lib"
+)
+set(CPACK_DEBIAN_PACKAGE_DEPENDS
+    "qml6-module-qtqml, qml6-module-qtqml-workerscript, qml6-module-qtquick, qml6-module-qtquick-controls, qml6-module-qtquick-layouts, qml6-module-qtquick-templates, qml6-module-qtquick-window"
+)
 include(CPack)

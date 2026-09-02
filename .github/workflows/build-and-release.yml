@@ -30,6 +30,7 @@ jobs:
             pkg-config \
             qt6-base-dev \
             qt6-declarative-dev \
+            qml6-module-qtqml-workerscript \
             qml6-module-qtquick* \
             qml6-module-qtquick-controls \
             qml6-module-qtquick-templates \
@@ -72,6 +73,7 @@ jobs:
           cp resources/icon-256.png AppDir/usr/share/icons/hicolor/256x256/apps/magnetofon.png
           cp src-cpp/packaging/magnetofon.desktop AppDir/magnetofon.desktop
           desktop-file-validate AppDir/magnetofon.desktop
+          desktop-file-validate src-cpp/packaging/magnetofon-deb.desktop
 
           # Build CPack Debian package
           (cd src-cpp/build && cpack -G DEB)
@@ -86,6 +88,13 @@ jobs:
           mkdir -p AppDir/usr/lib
           cp -a resources/projectm/linux-x64/lib/*.so* AppDir/usr/lib/
 
+          # QtQuick imports QtQml.WorkerScript implicitly, so qmlimportscanner
+          # does not reliably deploy it. Copy the module explicitly.
+          qt_qml_dir="$(qtpaths6 --query QT_INSTALL_QML)"
+          test -f "$qt_qml_dir/QtQml/WorkerScript/libworkerscriptplugin.so"
+          mkdir -p AppDir/usr/qml/QtQml
+          cp -a "$qt_qml_dir/QtQml/WorkerScript" AppDir/usr/qml/QtQml/
+
           export QML_SOURCES_PATHS=src-cpp/ui/qml
           export LD_LIBRARY_PATH="$PWD/resources/projectm/linux-x64/lib:$LD_LIBRARY_PATH"
           ./linuxdeploy-x86_64.AppImage \
@@ -99,6 +108,18 @@ jobs:
 
 
           mv Magnetofon*.AppImage release-artifacts/Magnetofon-x86_64.AppImage
+
+          # A healthy GUI remains open. Missing QML modules make it exit early.
+          set +e
+          APPIMAGE_EXTRACT_AND_RUN=1 timeout 8s xvfb-run --auto-servernum \
+            release-artifacts/Magnetofon-x86_64.AppImage \
+            > appimage-smoke.log 2>&1
+          appimage_status=$?
+          set -e
+          if [ "$appimage_status" -ne 124 ]; then
+            cat appimage-smoke.log
+            exit 1
+          fi
 
 
       - name: Upload Linux Artifacts
