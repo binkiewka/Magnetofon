@@ -11,11 +11,7 @@
 </p>
 
 <p align="center">
-  <img src="screenshots/magnetofon.png" width="850" alt="Magnetofon ST-8000 Interface Showcase" />
 
-</p>
-
-<p align="center">
   <a href="#-key-features">Features</a> •
   <a href="#-interface-showcase">Gallery</a> •
   <a href="#-installation--build">Setup & Build</a> •
