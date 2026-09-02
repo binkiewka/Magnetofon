@@ -82,7 +82,12 @@ jobs:
           wget -q https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
           chmod +x linuxdeploy-x86_64.AppImage linuxdeploy-plugin-qt-x86_64.AppImage
 
+          # Copy bundled projectM libraries so linuxdeploy finds them
+          mkdir -p AppDir/usr/lib
+          cp -a resources/projectm/linux-x64/lib/*.so* AppDir/usr/lib/
+
           export QML_SOURCES_PATHS=src-cpp/ui/qml
+          export LD_LIBRARY_PATH="$PWD/resources/projectm/linux-x64/lib:$LD_LIBRARY_PATH"
           ./linuxdeploy-x86_64.AppImage \
             --appdir AppDir \
             --executable AppDir/usr/bin/MagnetofonNative \
@@ -91,6 +96,7 @@ jobs:
             --icon-file AppDir/magnetofon.png \
             --plugin qt \
             --output appimage
+
 
           mv Magnetofon*.AppImage release-artifacts/Magnetofon-x86_64.AppImage
 
