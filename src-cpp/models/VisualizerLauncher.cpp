@@ -4,6 +4,7 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QStandardPaths>
+#include <QProcessEnvironment>
 #include <QDebug>
 
 VisualizerLauncher::VisualizerLauncher(QObject *parent)
@@ -50,20 +51,24 @@ QString VisualizerLauncher::findProjectMBinary() const
 QString VisualizerLauncher::findPresetDirectory() const
 {
     const QString appData = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    const QString customVisuals = appData + "/visuals";
-    if (QDir(customVisuals).exists()) {
-        return customVisuals;
-    }
-
-    const QString localVisuals = QDir::currentPath() + "/visuals";
-    if (QDir(localVisuals).exists()) {
-        return localVisuals;
-    }
-
     const QString pwd = QDir::currentPath();
-    const QString bundledPresets = pwd + "/resources/projectm/linux-x64/presets";
-    if (QDir(bundledPresets).exists()) {
-        return bundledPresets;
+    const QString appDir = QCoreApplication::applicationDirPath();
+
+    const QStringList candidatePresetDirs = {
+        appData + "/visuals",
+        pwd + "/visuals",
+        pwd + "/resources/projectm/linux-x64/presets",
+        appDir + "/resources/projectm/linux-x64/presets",
+        appDir + "/../resources/projectm/linux-x64/presets",
+        appDir + "/../../resources/projectm/linux-x64/presets"
+    };
+
+    for (const QString &dirPath : candidatePresetDirs) {
+        QDir dir(dirPath);
+        if (dir.exists()) {
+            qDebug() << "[VisualizerLauncher] Found preset directory at:" << dirPath;
+            return dirPath;
+        }
     }
 
     return QString();
@@ -84,8 +89,21 @@ void VisualizerLauncher::launchVisuals()
 
     const QString binary = findProjectMBinary();
     const QString presets = findPresetDirectory();
+    const QFileInfo binInfo(binary);
+    const QString binDir = binInfo.absolutePath();
+    const QString libDir = QFileInfo(binDir + "/../lib").absoluteFilePath();
 
-    qDebug() << "[VisualizerLauncher] Launching visualizer:" << binary << "with presets:" << presets;
+    qDebug() << "[VisualizerLauncher] Launching visualizer:" << binary << "with presets:" << presets << "libDir:" << libDir;
+
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    if (QDir(libDir).exists()) {
+        const QString existingLd = env.value("LD_LIBRARY_PATH");
+        env.insert("LD_LIBRARY_PATH", libDir + (existingLd.isEmpty() ? "" : ":" + existingLd));
+    }
+    m_process->setProcessEnvironment(env);
+    if (binInfo.exists()) {
+        m_process->setWorkingDirectory(binDir);
+    }
 
     QStringList args;
     if (!presets.isEmpty()) {
