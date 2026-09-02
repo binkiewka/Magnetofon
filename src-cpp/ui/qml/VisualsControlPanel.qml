@@ -102,9 +102,9 @@ Rectangle {
                                     HifiButton {
                                         text: modelData.label
                                         isCompact: true
-                                        isPrimary: root.targetFps === modelData.value
+                                        isPrimary: visualizerLauncher.targetFps === modelData.value
                                         Layout.fillWidth: true
-                                        onClicked: root.targetFps = modelData.value
+                                        onClicked: visualizerLauncher.targetFps = modelData.value
                                     }
                                 }
                             }
@@ -160,7 +160,8 @@ Rectangle {
                             Slider {
                                 id: rotationSlider
                                 Layout.fillWidth: true
-                                from: 2; to: 60; value: 15; stepSize: 1
+                                from: 2; to: 60; value: visualizerLauncher.presetDuration; stepSize: 1
+                                onMoved: visualizerLauncher.presetDuration = Math.round(value)
                             }
 
                             RowLayout {
@@ -188,7 +189,8 @@ Rectangle {
                             Slider {
                                 id: blendSlider
                                 Layout.fillWidth: true
-                                from: 0.5; to: 10.0; value: 2.5; stepSize: 0.5
+                                from: 0.5; to: 10.0; value: visualizerLauncher.transitionDuration; stepSize: 0.5
+                                onMoved: visualizerLauncher.transitionDuration = value
                             }
                         }
                     }
@@ -220,21 +222,16 @@ Rectangle {
                                     Layout.fillWidth: true
                                 }
                                 HifiButton {
-                                    text: hardCutsToggle.checked ? "ENABLED" : "DISABLED"
-                                    isPowerOn: hardCutsToggle.checked
+                                    text: visualizerLauncher.hardCutsEnabled ? "ENABLED" : "DISABLED"
+                                    isPowerOn: visualizerLauncher.hardCutsEnabled
                                     isCompact: true
-                                    onClicked: hardCutsToggle.checked = !hardCutsToggle.checked
-                                }
-                                Switch {
-                                    id: hardCutsToggle
-                                    checked: true
-                                    visible: false
+                                    onClicked: visualizerLauncher.hardCutsEnabled = !visualizerLauncher.hardCutsEnabled
                                 }
                             }
 
                             RowLayout {
                                 Layout.fillWidth: true
-                                opacity: hardCutsToggle.checked ? 1.0 : 0.4
+                                opacity: visualizerLauncher.hardCutsEnabled ? 1.0 : 0.4
                                 Text {
                                     text: "Hard Cut Sensitivity"
                                     color: theme.text
@@ -258,13 +255,14 @@ Rectangle {
                             Slider {
                                 id: cutSensSlider
                                 Layout.fillWidth: true
-                                enabled: hardCutsToggle.checked
-                                from: 0.1; to: 5.0; value: 1.0; stepSize: 0.1
+                                enabled: visualizerLauncher.hardCutsEnabled
+                                from: 0.1; to: 5.0; value: visualizerLauncher.hardCutSensitivity; stepSize: 0.1
+                                onMoved: visualizerLauncher.hardCutSensitivity = value
                             }
 
                             RowLayout {
                                 Layout.fillWidth: true
-                                opacity: hardCutsToggle.checked ? 1.0 : 0.4
+                                opacity: visualizerLauncher.hardCutsEnabled ? 1.0 : 0.4
                                 Text {
                                     text: "Minimum Time Between Hard Cuts"
                                     color: theme.text
@@ -288,8 +286,9 @@ Rectangle {
                             Slider {
                                 id: cutDurationSlider
                                 Layout.fillWidth: true
-                                enabled: hardCutsToggle.checked
-                                from: 2; to: 60; value: 10; stepSize: 2
+                                enabled: visualizerLauncher.hardCutsEnabled
+                                from: 2; to: 60; value: visualizerLauncher.hardCutDuration; stepSize: 2
+                                onMoved: visualizerLauncher.hardCutDuration = Math.round(value)
                             }
                         }
                     }
@@ -326,20 +325,21 @@ Rectangle {
                                     text: "CURATED PRESETS (50 PRESETS)"
                                     iconSymbol: "★"
                                     isCompact: true
-                                    isPrimary: root.presetSource === "CURATED"
+                                    isPrimary: visualizerLauncher.presetSource === "CURATED"
                                     Layout.fillWidth: true
-                                    onClicked: root.presetSource = "CURATED"
+                                    onClicked: visualizerLauncher.presetSource = "CURATED"
                                 }
 
                                 HifiButton {
                                     text: "ALL 9,000+ PRESETS LIBRARY"
                                     iconSymbol: "🌐"
                                     isCompact: true
-                                    isPrimary: root.presetSource === "ALL"
+                                    isPrimary: visualizerLauncher.presetSource === "ALL"
                                     Layout.fillWidth: true
-                                    onClicked: root.presetSource = "ALL"
+                                    onClicked: visualizerLauncher.presetSource = "ALL"
                                 }
                             }
+
 
                             RowLayout {
                                 Layout.fillWidth: true

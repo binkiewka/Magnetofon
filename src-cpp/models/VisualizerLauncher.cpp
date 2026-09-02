@@ -54,13 +54,22 @@ QString VisualizerLauncher::findPresetDirectory() const
     const QString pwd = QDir::currentPath();
     const QString appDir = QCoreApplication::applicationDirPath();
 
+    if (m_presetSource == "CURATED") {
+        const QStringList curatedDirs = {
+            pwd + "/resources/projectm/linux-x64/presets",
+            appDir + "/resources/projectm/linux-x64/presets",
+            appDir + "/../resources/projectm/linux-x64/presets"
+        };
+        for (const QString &dirPath : curatedDirs) {
+            if (QDir(dirPath).exists()) return dirPath;
+        }
+    }
+
     const QStringList candidatePresetDirs = {
         appData + "/visuals",
         pwd + "/visuals",
         pwd + "/resources/projectm/linux-x64/presets",
-        appDir + "/resources/projectm/linux-x64/presets",
-        appDir + "/../resources/projectm/linux-x64/presets",
-        appDir + "/../../resources/projectm/linux-x64/presets"
+        appDir + "/resources/projectm/linux-x64/presets"
     };
 
     for (const QString &dirPath : candidatePresetDirs) {
@@ -93,13 +102,17 @@ void VisualizerLauncher::launchVisuals()
     const QString binDir = binInfo.absolutePath();
     const QString libDir = QFileInfo(binDir + "/../lib").absoluteFilePath();
 
-    qDebug() << "[VisualizerLauncher] Launching visualizer:" << binary << "with presets:" << presets << "libDir:" << libDir;
+    qDebug() << "[VisualizerLauncher] Launching visualizer:" << binary << "with presets:" << presets;
 
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     if (QDir(libDir).exists()) {
         const QString existingLd = env.value("LD_LIBRARY_PATH");
         env.insert("LD_LIBRARY_PATH", libDir + (existingLd.isEmpty() ? "" : ":" + existingLd));
     }
+    // Wire system audio output monitor capture
+    env.insert("PULSE_SOURCE", "@DEFAULT_MONITOR@");
+    env.insert("SDL_AUDIODRIVER", "pulseaudio");
+
     m_process->setProcessEnvironment(env);
     if (binInfo.exists()) {
         m_process->setWorkingDirectory(binDir);
@@ -109,6 +122,14 @@ void VisualizerLauncher::launchVisuals()
     if (!presets.isEmpty()) {
         args << "-p" << presets;
     }
+    if (m_targetFps > 0) {
+        args << QString("--fps=%1").arg(m_targetFps);
+    }
+    args << QString("--presetDuration=%1").arg(m_presetDuration);
+    args << QString("--transitionDuration=%1").arg(m_transitionDuration);
+    args << QString("--hardCutsEnabled=%1").arg(m_hardCutsEnabled ? 1 : 0);
+    args << QString("--hardCutSensitivity=%1").arg(m_hardCutSensitivity);
+    args << QString("--hardCutDuration=%1").arg(m_hardCutDuration);
 
     m_process->start(binary, args);
     emit isRunningChanged();
@@ -123,6 +144,14 @@ void VisualizerLauncher::stopVisuals()
         m_process->kill();
     }
     emit isRunningChanged();
+}
+
+void VisualizerLauncher::restartIfRunning()
+{
+    if (isRunning()) {
+        stopVisuals();
+        launchVisuals();
+    }
 }
 
 void VisualizerLauncher::onProcessStateChanged(QProcess::ProcessState newState)
