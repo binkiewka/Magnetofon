@@ -81,8 +81,9 @@ void VisualizerLauncher::loadSettings()
     m_targetFps = std::clamp(settings.value(QStringLiteral("targetFps"), m_targetFps).toInt(), 0, 240);
     m_presetDuration = std::clamp(settings.value(QStringLiteral("presetDuration"), m_presetDuration).toInt(), 3, 240);
     m_transitionDuration = std::clamp(settings.value(QStringLiteral("transitionDuration"), m_transitionDuration).toDouble(),
-                                      0.0, std::min(30.0, m_presetDuration - 0.5));
+                                      0.5, std::min(30.0, m_presetDuration - 0.5));
     m_shuffleEnabled = settings.value(QStringLiteral("shuffleEnabled"), m_shuffleEnabled).toBool();
+    m_borderlessWindow = settings.value(QStringLiteral("borderlessWindow"), m_borderlessWindow).toBool();
     m_beatSensitivity = std::clamp(settings.value(QStringLiteral("beatSensitivity"), m_beatSensitivity).toDouble(), 0.0, 2.0);
     m_hardCutsEnabled = settings.value(QStringLiteral("hardCutsEnabled"), m_hardCutsEnabled).toBool();
     m_hardCutSensitivity = std::clamp(settings.value(QStringLiteral("hardCutSensitivity"), m_hardCutSensitivity).toDouble(), 0.0, 5.0);
@@ -115,7 +116,7 @@ void VisualizerLauncher::setPresetDuration(int duration)
     if (m_presetDuration == duration) return;
 
     m_presetDuration = duration;
-    m_transitionDuration = std::min(m_transitionDuration, m_presetDuration - 0.5);
+    m_transitionDuration = std::clamp(m_transitionDuration, 0.5, m_presetDuration - 0.5);
     m_hardCutDuration = std::min(m_hardCutDuration, std::max(2, m_presetDuration - 1));
     saveSetting(QStringLiteral("presetDuration"), m_presetDuration);
     saveSetting(QStringLiteral("transitionDuration"), m_transitionDuration);
@@ -126,7 +127,7 @@ void VisualizerLauncher::setPresetDuration(int duration)
 
 void VisualizerLauncher::setTransitionDuration(double duration)
 {
-    duration = std::clamp(duration, 0.0, std::min(30.0, m_presetDuration - 0.5));
+    duration = std::clamp(duration, 0.5, std::min(30.0, m_presetDuration - 0.5));
     if (qFuzzyCompare(m_transitionDuration + 1.0, duration + 1.0)) return;
     m_transitionDuration = duration;
     saveSetting(QStringLiteral("transitionDuration"), duration);
@@ -139,6 +140,15 @@ void VisualizerLauncher::setShuffleEnabled(bool enabled)
     if (m_shuffleEnabled == enabled) return;
     m_shuffleEnabled = enabled;
     saveSetting(QStringLiteral("shuffleEnabled"), enabled);
+    emit settingsChanged();
+    scheduleRestartIfRunning();
+}
+
+void VisualizerLauncher::setBorderlessWindow(bool enabled)
+{
+    if (m_borderlessWindow == enabled) return;
+    m_borderlessWindow = enabled;
+    saveSetting(QStringLiteral("borderlessWindow"), enabled);
     emit settingsChanged();
     scheduleRestartIfRunning();
 }
@@ -340,6 +350,7 @@ QStringList VisualizerLauncher::buildArguments() const
     }
 
     args << QStringLiteral("--enableSplash=0")
+         << QStringLiteral("--borderless=%1").arg(m_borderlessWindow ? 1 : 0)
          << QStringLiteral("--shuffleEnabled=%1").arg(m_shuffleEnabled ? 1 : 0)
          << QStringLiteral("--fps=%1").arg(m_targetFps)
          << QStringLiteral("--presetDuration=%1").arg(m_presetDuration)

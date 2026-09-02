@@ -1,0 +1,42 @@
+diff --git a/src/libprojectM/ProjectM.cpp b/src/libprojectM/ProjectM.cpp
+index a042f24..d7746ba 100644
+--- a/src/libprojectM/ProjectM.cpp
++++ b/src/libprojectM/ProjectM.cpp
+@@ -128,6 +128,19 @@ void ProjectM::RenderFrame(uint32_t targetFramebufferObject /*= 0*/)
+     m_audioStorage.UpdateFrameAudioData(m_timeKeeper->SecondsSinceLastFrame(), m_frameCount);
+     auto audioData = m_audioStorage.GetFrameAudioData();
++    const auto rawVolume = audioData.vol;
+
++    // The public beat-sensitivity setting is intended to control how strongly
++    // presets react to the derived bass/mid/treble values. In projectM 4.2 the
++    // value was stored but never applied, making the API control a no-op.
++    audioData.bass *= m_beatSensitivity;
++    audioData.bassAtt *= m_beatSensitivity;
++    audioData.mid *= m_beatSensitivity;
++    audioData.midAtt *= m_beatSensitivity;
++    audioData.treb *= m_beatSensitivity;
++    audioData.trebAtt *= m_beatSensitivity;
++    audioData.vol *= m_beatSensitivity;
++    audioData.volAtt *= m_beatSensitivity;
++
+     // Check if the preset isn't locked, and we've not already notified the user
+     if (!m_presetChangeNotified)
+     {
+@@ -139,7 +152,7 @@ void ProjectM::RenderFrame(uint32_t targetFramebufferObject /*= 0*/)
+         }
+         else if (m_hardCutEnabled &&
+                  m_frameCount > 50 &&
+-                 (audioData.vol - m_previousFrameVolume > m_hardCutSensitivity) &&
++                 (rawVolume - m_previousFrameVolume > m_hardCutSensitivity) &&
+                  m_timeKeeper->CanHardCut())
+         {
+             m_presetChangeNotified = true;
+@@ -216,7 +229,7 @@ void ProjectM::RenderFrame(uint32_t targetFramebufferObject /*= 0*/)
+     m_spriteManager->Draw(audioData, renderContext, targetFramebufferObject, {m_activePreset, m_transitioningPreset});
+
+     m_frameCount++;
+-    m_previousFrameVolume = audioData.vol;
++    m_previousFrameVolume = rawVolume;
+ }
+
+ void ProjectM::Initialize()

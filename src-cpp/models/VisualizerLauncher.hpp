@@ -18,6 +18,7 @@ class VisualizerLauncher : public QObject {
     Q_PROPERTY(int presetDuration READ presetDuration WRITE setPresetDuration NOTIFY settingsChanged)
     Q_PROPERTY(double transitionDuration READ transitionDuration WRITE setTransitionDuration NOTIFY settingsChanged)
     Q_PROPERTY(bool shuffleEnabled READ shuffleEnabled WRITE setShuffleEnabled NOTIFY settingsChanged)
+    Q_PROPERTY(bool borderlessWindow READ borderlessWindow WRITE setBorderlessWindow NOTIFY settingsChanged)
     Q_PROPERTY(double beatSensitivity READ beatSensitivity WRITE setBeatSensitivity NOTIFY settingsChanged)
     Q_PROPERTY(bool hardCutsEnabled READ hardCutsEnabled WRITE setHardCutsEnabled NOTIFY settingsChanged)
     Q_PROPERTY(double hardCutSensitivity READ hardCutSensitivity WRITE setHardCutSensitivity NOTIFY settingsChanged)
@@ -49,6 +50,9 @@ public:
 
     bool shuffleEnabled() const { return m_shuffleEnabled; }
     void setShuffleEnabled(bool enabled);
+
+    bool borderlessWindow() const { return m_borderlessWindow; }
+    void setBorderlessWindow(bool enabled);
 
     double beatSensitivity() const { return m_beatSensitivity; }
     void setBeatSensitivity(double sensitivity);
@@ -119,6 +123,7 @@ private:
     int m_presetDuration = 15;
     double m_transitionDuration = 2.5;
     bool m_shuffleEnabled = true;
+    bool m_borderlessWindow = true;
     double m_beatSensitivity = 1.0;
     bool m_hardCutsEnabled = true;
     double m_hardCutSensitivity = 1.0;

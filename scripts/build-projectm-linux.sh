@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENDOR="$ROOT/vendor/projectm"
 BUNDLE="$ROOT/resources/projectm/linux-x64"
-BUILD="$VENDOR/build"
+BUILD="$VENDOR/frontend-build-magnetofon"
 
 mkdir -p "$VENDOR" "$BUNDLE/bin" "$BUNDLE/presets" "$BUNDLE/textures"
 
@@ -20,7 +20,7 @@ Missing projectM build dependencies: ${missing[*]}
 On Ubuntu/Debian, install roughly:
   sudo apt install git cmake build-essential pkg-config rsync libsdl2-dev
 
-Poco is intentionally built into the LinAmp projectM bundle because Ubuntu 24.04's
+Poco is intentionally built into the Magnetofon projectM bundle because Ubuntu 24.04's
 libpoco-dev is 1.11.0, which projectMSDL rejects due to a known crash bug.
 MSG
   exit 1
@@ -41,7 +41,24 @@ fi
 git -C "$VENDOR/frontend-sdl-cpp" submodule update --init --recursive
 git -C "$VENDOR/projectm" submodule update --init --recursive
 
-POCO_BUILD="$VENDOR/poco-build"
+apply_patch_once() {
+  local repo="$1"
+  local patch_file="$2"
+
+  if git -C "$repo" apply --check "$patch_file"; then
+    git -C "$repo" apply "$patch_file"
+  elif git -C "$repo" apply --reverse --check "$patch_file"; then
+    echo "Already applied: $patch_file"
+  else
+    echo "Patch no longer applies cleanly: $patch_file" >&2
+    exit 1
+  fi
+}
+
+apply_patch_once "$VENDOR/projectm" "$ROOT/resources/projectm/patches/projectm-core.patch"
+apply_patch_once "$VENDOR/frontend-sdl-cpp" "$ROOT/resources/projectm/patches/frontend-sdl-cpp.patch"
+
+POCO_BUILD="$VENDOR/poco-build-magnetofon"
 cmake -S "$VENDOR/poco" -B "$POCO_BUILD" \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_INSTALL_PREFIX="$BUNDLE" \
@@ -65,38 +82,33 @@ cmake -S "$VENDOR/poco" -B "$POCO_BUILD" \
 cmake --build "$POCO_BUILD" --config Release --parallel "$(nproc)"
 cmake --install "$POCO_BUILD"
 
-CORE_BUILD="$VENDOR/core-build"
+CORE_BUILD="$VENDOR/core-build-magnetofon"
 cmake -S "$VENDOR/projectm" -B "$CORE_BUILD" \
   -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_INSTALL_PREFIX="$BUNDLE"
+  -DCMAKE_INSTALL_PREFIX="$BUNDLE" \
+  -DCMAKE_INSTALL_RPATH='$ORIGIN'
 cmake --build "$CORE_BUILD" --config Release --parallel "$(nproc)"
 cmake --install "$CORE_BUILD"
 
-rm -f "$BUILD/CMakeCache.txt"
 cmake -S "$VENDOR/frontend-sdl-cpp" -B "$BUILD" \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_PREFIX_PATH="$BUNDLE" \
   -DPoco_DIR="$BUNDLE/lib/cmake/Poco" \
   -DPoco_VERSION=1.14.2 \
-  -DCMAKE_INSTALL_PREFIX="$BUNDLE"
+  -DCMAKE_INSTALL_PREFIX="$BUNDLE" \
+  -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib' \
+  -DDEFAULT_CONFIG_PATH='${application.dir}/../share/projectMSDL' \
+  -DDEFAULT_PRESETS_PATH='${application.dir}/../presets' \
+  -DDEFAULT_TEXTURES_PATH='${application.dir}/../textures'
 cmake --build "$BUILD" --config Release --parallel "$(nproc)"
-cmake --install "$BUILD" 2>/dev/null || true
+cmake --install "$BUILD"
 
-candidate=""
-while IFS= read -r -d '' file; do
-  case "$(basename "$file")" in
-    projectMSDL|projectm-sdl|projectm*) candidate="$file"; break ;;
-  esac
-done < <(find "$BUILD" -maxdepth 4 -type f -perm -111 -print0)
-
-if [[ -z "$candidate" ]]; then
-  echo "Could not find built projectMSDL executable under $BUILD" >&2
+if [[ ! -x "$BUNDLE/bin/projectMSDL" ]]; then
+  echo "projectMSDL was not installed to $BUNDLE/bin/projectMSDL" >&2
   exit 1
 fi
 
-install -m 0755 "$candidate" "$BUNDLE/bin/projectMSDL"
-
-# Copy non-system shared-library dependencies next to the helper. LinAmp sets LD_LIBRARY_PATH
+# Copy non-system shared-library dependencies next to the helper. Magnetofon sets LD_LIBRARY_PATH
 # to this folder when launching projectM, so the packaged app uses its bundled projectM runtime.
 while IFS= read -r dep; do
   [[ -f "$dep" ]] || continue

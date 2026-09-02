@@ -284,7 +284,7 @@ Rectangle {
                             }
 
                             Text {
-                                text: "Rotation always advances automatically. Shuffle changes only the order; switch it off to play presets alphabetically."
+                                text: "Rotation advances automatically. Shuffle changes only the order. Hard cuts can switch earlier than the normal preset timer."
                                 color: theme.textMuted
                                 font.family: theme.uiFont
                                 font.pixelSize: 8
@@ -295,7 +295,7 @@ Rectangle {
                             VisualSettingSlider {
                                 Layout.fillWidth: true
                                 label: "Preset duration"
-                                description: "How long each preset stays on screen before the next automatic switch."
+                                description: "Target time before a normal switch (projectM may vary by about one second). Hard cuts can end it earlier."
                                 from: 3
                                 to: 120
                                 stepSize: 1
@@ -308,14 +308,47 @@ Rectangle {
                             VisualSettingSlider {
                                 Layout.fillWidth: true
                                 label: "Transition duration"
-                                description: "Crossfade time for normal preset changes. Hard cuts skip this blend."
-                                from: 0
+                                description: "Crossfade time for normal changes. Hard cuts skip it; 0.5 s is the safe minimum."
+                                from: 0.5
                                 to: Math.min(10, visualizerLauncher.presetDuration - 0.5)
                                 stepSize: 0.5
                                 decimals: 1
                                 suffix: " s"
                                 value: visualizerLauncher.transitionDuration
                                 onValueCommitted: function(newValue) { visualizerLauncher.transitionDuration = newValue }
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 10
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+                                    Text {
+                                        text: "Visualizer window"
+                                        color: theme.text
+                                        font.family: theme.uiFont
+                                        font.pixelSize: 10
+                                        font.weight: Font.DemiBold
+                                    }
+                                    Text {
+                                        text: "Borderless removes the title bar and frame. Use F or F11 inside the visualizer for fullscreen."
+                                        color: theme.textMuted
+                                        font.family: theme.uiFont
+                                        font.pixelSize: 8
+                                        wrapMode: Text.WordWrap
+                                        Layout.fillWidth: true
+                                    }
+                                }
+
+                                HifiButton {
+                                    text: visualizerLauncher.borderlessWindow ? "BORDERLESS" : "FRAMED"
+                                    iconSymbol: visualizerLauncher.borderlessWindow ? "□" : "▣"
+                                    isPowerOn: visualizerLauncher.borderlessWindow
+                                    isCompact: true
+                                    onClicked: visualizerLauncher.borderlessWindow = !visualizerLauncher.borderlessWindow
+                                }
                             }
 
                             RowLayout {
@@ -404,7 +437,7 @@ Rectangle {
                             VisualSettingSlider {
                                 Layout.fillWidth: true
                                 label: "Beat sensitivity"
-                                description: "Amplifies the beat signal used inside presets. Higher values make pulsing, zoom and movement react more strongly."
+                                description: "Scales bass, mid and treble energy sent to presets. Higher values make audio-driven motion react more strongly."
                                 from: 0
                                 to: 2
                                 stepSize: 0.1
@@ -454,7 +487,7 @@ Rectangle {
                                 Text {
                                     anchors.fill: parent
                                     anchors.margins: 7
-                                    text: "Hard cuts only happen after the cooldown and on a strong enough audio peak. They do not replace the preset-duration timer."
+                                    text: "Hard cuts can replace the normal timer: after the cooldown, a strong enough peak switches immediately. Turn them off for duration-only rotation."
                                     color: theme.textSoft
                                     font.family: theme.uiFont
                                     font.pixelSize: 8

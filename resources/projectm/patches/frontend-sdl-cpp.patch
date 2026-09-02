@@ -1,0 +1,28 @@
+diff --git a/src/ProjectMSDLApplication.cpp b/src/ProjectMSDLApplication.cpp
+index 3d12e58..59197dd 100644
+--- a/src/ProjectMSDLApplication.cpp
++++ b/src/ProjectMSDLApplication.cpp
+@@ -150,6 +150,10 @@ void ProjectMSDLApplication::defineOptions(Poco::Util::OptionSet& options)
+                              false, "<0/1>", true)
+                           .binding("window.fullscreen", _commandLineOverrides));
+
++    options.addOption(Option("borderless", "", "Start with window decorations disabled.",
++                             false, "<0/1>", true)
++                          .binding("window.borderless", _commandLineOverrides));
++
+     options.addOption(Option("exclusive", "e",
+                              "Use exclusive fullscreen mode. If true, this will change display resolution on most platforms to best match the window resolution.",
+                              false, "<0/1>", true)
+diff --git a/src/ProjectMWrapper.cpp b/src/ProjectMWrapper.cpp
+index 75894f1..faf6b56 100644
+--- a/src/ProjectMWrapper.cpp
++++ b/src/ProjectMWrapper.cpp
+@@ -326,7 +326,7 @@ void ProjectMWrapper::OnConfigurationPropertyRemoved(const std::string& key)
+
+     if (key == "projectM.hardCutsEnabled")
+     {
+-        projectm_set_aspect_correction(_projectM, _projectMConfigView->getBool("hardCutsEnabled", false));
++        projectm_set_hard_cut_enabled(_projectM, _projectMConfigView->getBool("hardCutsEnabled", false));
+     }
+
+     if (key == "projectM.hardCutDuration")

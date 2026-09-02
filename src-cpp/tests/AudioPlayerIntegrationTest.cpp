@@ -214,9 +214,12 @@ private slots:
 
         launcher.setTargetFps(0);
         launcher.setPresetDuration(8);
+        launcher.setTransitionDuration(0.0);
+        QCOMPARE(launcher.transitionDuration(), 0.5);
         launcher.setTransitionDuration(20.0);
         launcher.setBeatSensitivity(9.0);
         launcher.setHardCutDuration(99);
+        launcher.setBorderlessWindow(false);
 
         QCOMPARE(launcher.transitionDuration(), 7.5);
         QCOMPARE(launcher.beatSensitivity(), 2.0);
@@ -224,7 +227,7 @@ private slots:
 
         const QStringList arguments = launcher.buildArguments();
         QVERIFY(arguments.contains(QStringLiteral("--enableSplash=0")));
-        QVERIFY(!arguments.contains(QStringLiteral("--window.borderless=1")));
+        QVERIFY(arguments.contains(QStringLiteral("--borderless=0")));
         QVERIFY(arguments.contains(QStringLiteral("--shuffleEnabled=1")));
         QVERIFY(arguments.contains(QStringLiteral("--fps=0")));
         QVERIFY(arguments.contains(QStringLiteral("--presetDuration=8")));
