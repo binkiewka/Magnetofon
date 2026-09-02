@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
     app.setApplicationDisplayName("Magnetofon");
     app.setDesktopFileName("magnetofon.desktop");
     app.setOrganizationName("Magnetofon");
-    app.setApplicationVersion("2.0.0");
+    app.setApplicationVersion(QString::fromLatin1(MAGNETOFON_VERSION));
 
     const QIcon appIcon(QStringLiteral(":/resources/icon-256.png"));
     const QImage appIconImage(QStringLiteral(":/resources/icon-256.png"));

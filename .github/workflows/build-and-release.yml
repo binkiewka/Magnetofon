@@ -77,6 +77,9 @@ jobs:
 
           # Build CPack Debian package
           (cd src-cpp/build && cpack -G DEB)
+          for deb_file in src-cpp/build/*.deb; do
+            bash src-cpp/packaging/fix-deb-dependencies.sh "$deb_file"
+          done
           cp src-cpp/build/*.deb release-artifacts/
 
           # Build self-contained Linux AppImage with bundled Qt6 & QML runtime

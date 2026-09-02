@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(Magnetofon VERSION 2.0.0 LANGUAGES CXX C)
+project(Magnetofon VERSION 2.0.2 LANGUAGES CXX C)
 
 
 include(GNUInstallDirs)
@@ -77,6 +77,10 @@ set(RESOURCES
 )
 
 add_executable(MagnetofonNative ${SOURCES} ${HEADERS} ${RESOURCES})
+
+target_compile_definitions(MagnetofonNative PRIVATE
+    MAGNETOFON_VERSION="${PROJECT_VERSION}"
+)
 
 target_link_libraries(MagnetofonNative PRIVATE
     Qt6::Core
