@@ -53,6 +53,7 @@ include_directories(
 set(SOURCES
     main.cpp
     audio/AudioPlayer.cpp
+    audio/AudioRouting.cpp
     audio/PulseAudioAnalyzer.cpp
     audio/TrackMetadataReader.cpp
     models/PlaylistModel.cpp
@@ -63,6 +64,7 @@ set(SOURCES
 
 set(HEADERS
     audio/AudioPlayer.hpp
+    audio/AudioRouting.hpp
     audio/PulseAudioAnalyzer.hpp
     audio/TrackMetadataReader.hpp
     models/PlaylistModel.hpp
@@ -152,11 +154,13 @@ if(BUILD_TESTING)
     add_executable(MagnetofonTests
         tests/AudioPlayerIntegrationTest.cpp
         audio/AudioPlayer.cpp
+        audio/AudioRouting.cpp
         audio/PulseAudioAnalyzer.cpp
         audio/TrackMetadataReader.cpp
         models/PlaylistModel.cpp
         models/VisualizerLauncher.cpp
         audio/AudioPlayer.hpp
+        audio/AudioRouting.hpp
         audio/PulseAudioAnalyzer.hpp
         audio/TrackMetadataReader.hpp
         models/PlaylistModel.hpp

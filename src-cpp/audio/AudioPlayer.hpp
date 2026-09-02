@@ -22,6 +22,7 @@ class AudioPlayer : public QObject {
     Q_PROPERTY(bool isPlaying READ isPlaying NOTIFY isPlayingChanged)
     Q_PROPERTY(bool hasLoadedMedia READ hasLoadedMedia NOTIFY hasLoadedMediaChanged)
     Q_PROPERTY(QString surroundMode READ surroundMode WRITE setSurroundMode NOTIFY surroundModeChanged)
+    Q_PROPERTY(int sourceChannels READ sourceChannels NOTIFY sourceChannelsChanged)
     Q_PROPERTY(bool eqEnabled READ eqEnabled WRITE setEqEnabled NOTIFY eqEnabledChanged)
     Q_PROPERTY(double preamp READ preamp WRITE setPreamp NOTIFY preampChanged)
     Q_PROPERTY(QVariantList eqBands READ eqBands WRITE setEqBands NOTIFY eqBandsChanged)
@@ -40,6 +41,7 @@ public:
     bool isPlaying() const { return m_isPlaying; }
     bool hasLoadedMedia() const { return m_fileLoaded; }
     QString surroundMode() const { return m_surroundMode; }
+    int sourceChannels() const { return m_sourceChannels; }
     bool eqEnabled() const { return m_eqEnabled; }
     double preamp() const { return m_preamp; }
     QVariantList eqBands() const { return m_eqBands; }
@@ -69,6 +71,7 @@ signals:
     void isPlayingChanged();
     void hasLoadedMediaChanged();
     void surroundModeChanged();
+    void sourceChannelsChanged();
     void eqEnabledChanged();
     void preampChanged();
     void eqBandsChanged();
@@ -87,6 +90,7 @@ private:
     void setFileLoaded(bool loaded);
     void setPlaying(bool playing);
     void resetAnalysis(bool immediate = false);
+    void updateSourceAudioParams();
 
     mpv_handle *m_mpv = nullptr;
     QTimer *m_eventTimer = nullptr;
@@ -103,6 +107,7 @@ private:
     bool m_paused = false;
     bool m_playWhenLoaded = false;
     QString m_surroundMode = "AUTO";
+    int m_sourceChannels = 0;
     bool m_eqEnabled = false;
     double m_preamp = -3.0;
     QVariantList m_eqBands;

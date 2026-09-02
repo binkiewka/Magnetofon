@@ -26,7 +26,7 @@
 
 - **0% CPU Animation Jank**: Powered by Qt Quick Scene Graph GPU rendering, CSS repaints and main-thread webview bottlenecks are completely eliminated.
 - **Ultra-Low Memory Footprint (~35 MB RAM)**: Uses ~85% less RAM than webview/Electron applications.
-- **Direct `libmpv` C++ Audio Engine**: No IPC bridge overhead. Audio properties, PCM meter physics, and equalizer filters run natively in C++.
+- **Direct `libmpv` C++ Audio Engine**: No IPC bridge overhead. Audio properties, PCM meter physics, equalizer filters, and channel-aware routing run natively in C++.
 - **McIntosh Sapphire Blue VU Meters**: Custom C++ `QQuickPaintedItem` rendering dual-needle power output meters at 60+ FPS with spring physics.
 - **Frameless Windowless Console**: Native desktop integration with seamless titlebar window dragging (`startSystemMove()`), minimize, and close controls.
 
@@ -57,6 +57,7 @@
 
 Magnetofon handles all major audio formats natively via `libmpv`:
 - **Lossless**: FLAC, WAV, AIFF, AIF, ALAC
+- **Multichannel**: Native 5.1/7.1 FLAC passthrough in Auto and Surround modes; proper stereo downmix; mono/stereo-to-5.1 upmix in Surround mode
 - **Compressed**: MP3, AAC, M4A, OGG, OPUS, WMA, MP2
 
 ---

@@ -1,7 +1,9 @@
 #include <QtTest>
 
 #include "AudioPlayer.hpp"
+#include "AudioRouting.hpp"
 #include "PlaylistModel.hpp"
+#include "TrackMetadataReader.hpp"
 #include "VisualizerLauncher.hpp"
 
 #include <QDataStream>
@@ -53,6 +55,40 @@ private:
         return path;
     }
 
+    QString createSurroundTone(const QString &name, double seconds = 1.0)
+    {
+        const QString path = m_tempDir.filePath(name);
+        QFile file(path);
+        if (!file.open(QIODevice::WriteOnly)) return {};
+
+        constexpr quint32 sampleRate = 48000;
+        constexpr quint16 channels = 6;
+        constexpr quint16 bitsPerSample = 16;
+        const quint32 frames = static_cast<quint32>(seconds * sampleRate);
+        const quint32 dataSize = frames * channels * (bitsPerSample / 8);
+
+        QDataStream stream(&file);
+        stream.setByteOrder(QDataStream::LittleEndian);
+        stream.writeRawData("RIFF", 4);
+        stream << quint32(36 + dataSize);
+        stream.writeRawData("WAVE", 4);
+        stream.writeRawData("fmt ", 4);
+        stream << quint32(16) << quint16(1) << channels << sampleRate;
+        stream << quint32(sampleRate * channels * bitsPerSample / 8);
+        stream << quint16(channels * bitsPerSample / 8) << bitsPerSample;
+        stream.writeRawData("data", 4);
+        stream << dataSize;
+
+        const double frequencies[channels] = {220.0, 330.0, 440.0, 55.0, 660.0, 880.0};
+        for (quint32 i = 0; i < frames; ++i) {
+            const double time = static_cast<double>(i) / sampleRate;
+            for (double frequency : frequencies) {
+                stream << static_cast<qint16>(std::sin(time * frequency * 2.0 * M_PI) * 8000);
+            }
+        }
+        return path;
+    }
+
 private slots:
     void initTestCase()
     {
@@ -74,6 +110,52 @@ private slots:
         player.play();
         QTest::qWait(100);
         QVERIFY(!player.isPlaying());
+    }
+
+    void routingModesPreserveNativeSurround()
+    {
+        QCOMPARE(AudioRouting::outputChannels(QStringLiteral("AUTO")), QStringLiteral("auto-safe"));
+        QCOMPARE(AudioRouting::outputChannels(QStringLiteral("SURROUND")), QStringLiteral("auto-safe"));
+        QCOMPARE(AudioRouting::outputChannels(QStringLiteral("STEREO")), QStringLiteral("stereo"));
+
+        QVERIFY(AudioRouting::shouldUpmixToSurround(QStringLiteral("SURROUND"), 2));
+        QVERIFY(!AudioRouting::shouldUpmixToSurround(QStringLiteral("SURROUND"), 6));
+        QVERIFY(!AudioRouting::shouldUpmixToSurround(QStringLiteral("AUTO"), 2));
+        QVERIFY(!AudioRouting::shouldUpmixToSurround(QStringLiteral("STEREO"), 6));
+    }
+
+    void playerDetectsNativeSurroundSource()
+    {
+        const QString tone = createSurroundTone("native-surround.wav");
+        QVERIFY(!tone.isEmpty());
+
+        AudioPlayer player;
+        player.setSurroundMode(QStringLiteral("SURROUND"));
+        player.load(tone);
+        QTRY_VERIFY_WITH_TIMEOUT(player.hasLoadedMedia(), 3000);
+        QCOMPARE(player.sourceChannels(), 6);
+    }
+
+    void externalSurroundFlacIsPreserved()
+    {
+        const QString path = qEnvironmentVariable("MAGNETOFON_SURROUND_TEST_FILE");
+        if (path.isEmpty()) QSKIP("Set MAGNETOFON_SURROUND_TEST_FILE to test a real file");
+        QVERIFY2(QFileInfo::exists(path), qPrintable(QStringLiteral("Missing test file: ") + path));
+
+        const TrackMetadata metadata = TrackMetadataReader::read(path);
+        QCOMPARE(metadata.codec, QStringLiteral("FLAC"));
+        QVERIFY(metadata.channels > 2);
+        QVERIFY(metadata.formatLabel.contains(QStringLiteral("5.1"))
+                || metadata.formatLabel.contains(QStringLiteral("7.1"))
+                || metadata.formatLabel.contains(QStringLiteral(" CH")));
+
+        AudioPlayer player;
+        player.setSurroundMode(QStringLiteral("SURROUND"));
+        player.load(path);
+        QTRY_VERIFY_WITH_TIMEOUT(player.hasLoadedMedia(), 5000);
+        QCOMPARE(player.sourceChannels(), metadata.channels);
+        QVERIFY(!AudioRouting::shouldUpmixToSurround(player.surroundMode(),
+                                                      player.sourceChannels()));
     }
 
     void droppedFilesFeedPlaylistAndSelection()

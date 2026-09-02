@@ -69,6 +69,8 @@ QString channelLabel(int channels)
 {
     if (channels == 1) return QStringLiteral("MONO");
     if (channels == 2) return QStringLiteral("STEREO");
+    if (channels == 6) return QStringLiteral("5.1");
+    if (channels == 8) return QStringLiteral("7.1");
     if (channels > 2) return QString::number(channels) + QStringLiteral(" CH");
     return {};
 }
@@ -199,6 +201,8 @@ TrackMetadata TrackMetadataReader::read(const QString &filePath)
                                      && (metadata.bitDepth >= 24 || metadata.sampleRate >= 48000);
         if (highQualityFlac) {
             metadata.formatLabel = QStringLiteral("HQ FLAC");
+            const QString channels = channelLabel(metadata.channels);
+            if (!channels.isEmpty()) metadata.formatLabel += QStringLiteral(" ") + channels;
         } else {
             const QString channels = channelLabel(metadata.channels);
             metadata.formatLabel = metadata.codec;
@@ -228,4 +232,3 @@ TrackMetadata TrackMetadataReader::read(const QString &filePath)
 
     return metadata;
 }
-

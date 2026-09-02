@@ -1,4 +1,5 @@
 #include "AudioPlayer.hpp"
+#include "AudioRouting.hpp"
 #include "PulseAudioAnalyzer.hpp"
 
 #include <QDebug>
@@ -114,6 +115,7 @@ void AudioPlayer::processMpvEvents()
         case MPV_EVENT_FILE_LOADED: {
             m_loadPending = false;
             setFileLoaded(true);
+            updateSourceAudioParams();
             if (m_playWhenLoaded) {
                 int paused = 0;
                 m_paused = false;
@@ -188,6 +190,10 @@ void AudioPlayer::load(const QString &filePath)
 
     m_playWhenLoaded = false;
     m_loadPending = false;
+    if (m_sourceChannels != 0) {
+        m_sourceChannels = 0;
+        emit sourceChannelsChanged();
+    }
     setFileLoaded(false);
     setPlaying(false);
 
@@ -307,6 +313,14 @@ void AudioPlayer::applyAudioFilters()
 {
     if (!m_mpv) return;
 
+    const QByteArray outputChannels = AudioRouting::outputChannels(m_surroundMode).toUtf8();
+    const int channelsStatus = mpv_set_property_string(m_mpv, "audio-channels",
+                                                        outputChannels.constData());
+    if (channelsStatus < 0) {
+        qWarning() << "[AudioPlayer] Failed to set output channels:"
+                   << mpv_error_string(channelsStatus);
+    }
+
     QStringList filters;
     if (m_eqEnabled) {
         if (std::abs(m_preamp) > 0.01) {
@@ -324,14 +338,29 @@ void AudioPlayer::applyAudioFilters()
         }
     }
 
-    if (m_surroundMode.compare("SURROUND", Qt::CaseInsensitive) == 0) {
-        filters.append("pan=5.1|FL=FL|FR=FR|FC=0.55*FL+0.55*FR|LFE=0.25*FL+0.25*FR|BL=0.45*FR|BR=0.45*FL");
+    if (AudioRouting::shouldUpmixToSurround(m_surroundMode, m_sourceChannels)) {
+        filters.append(AudioRouting::surroundUpmixFilter());
     }
 
     const QString filter = filters.isEmpty() ? QString() : QString("lavfi=[%1]").arg(filters.join(','));
     const QByteArray encodedFilter = filter.toUtf8();
     const int status = mpv_set_property_string(m_mpv, "af", encodedFilter.constData());
     if (status < 0) qWarning() << "[AudioPlayer] Failed to apply filters:" << mpv_error_string(status);
+}
+
+void AudioPlayer::updateSourceAudioParams()
+{
+    if (!m_mpv) return;
+
+    int64_t channels = 0;
+    const int status = mpv_get_property(m_mpv, "audio-params/channel-count",
+                                        MPV_FORMAT_INT64, &channels);
+    const int detectedChannels = status >= 0 ? static_cast<int>(channels) : 0;
+    if (m_sourceChannels == detectedChannels) return;
+
+    m_sourceChannels = detectedChannels;
+    emit sourceChannelsChanged();
+    qInfo() << "[AudioPlayer] Source audio channels:" << m_sourceChannels;
 }
 
 void AudioPlayer::resetAnalysis(bool immediate)
