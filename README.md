@@ -11,7 +11,8 @@
 </p>
 
 <p align="center">
-  <img src="screenshots/magnetofon-front.jpg" width="850" alt="Magnetofon ST-8000 Interface Showcase" />
+  <img src="screenshots/magnetofon.png" width="850" alt="Magnetofon ST-8000 Interface Showcase" />
+
 </p>
 
 <p align="center">
@@ -38,8 +39,9 @@
 ## 📸 Interface Showcase
 
 <p align="center">
-  <img src="screenshots/magnetofon-front.jpg" width="850" alt="Magnetofon ST-8000" />
+  <img src="screenshots/magnetofon.png" width="850" alt="Magnetofon ST-8000" />
 </p>
+
 
 ---
 
