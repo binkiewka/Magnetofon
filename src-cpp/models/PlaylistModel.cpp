@@ -13,10 +13,11 @@ PlaylistModel::PlaylistModel(QObject *parent)
 {
 }
 
-bool PlaylistModel::isSupportedAudioFile(const QFileInfo &file)
+bool PlaylistModel::isSupportedMediaFile(const QFileInfo &file)
 {
     static const QSet<QString> extensions = {
-        "mp3", "flac", "wav", "ogg", "m4a", "aac", "aiff", "aif", "opus", "wma"
+        "mp3", "flac", "wav", "ogg", "m4a", "aac", "aiff", "aif", "opus", "wma",
+        "mkv", "mka", "mp4", "m4v", "mov", "webm", "m2ts", "mts", "ts", "vob", "avi"
     };
     return file.exists() && file.isFile() && extensions.contains(file.suffix().toLower());
 }
@@ -54,6 +55,11 @@ QVariant PlaylistModel::data(const QModelIndex &index, int role) const
     case ChannelsRole: return track.channels;
     case BitDepthRole: return track.bitDepth;
     case BitrateRole: return track.bitrate;
+    case HasVideoRole: return track.hasVideo;
+    case VideoCodecRole: return track.videoCodec;
+    case VideoWidthRole: return track.videoWidth;
+    case VideoHeightRole: return track.videoHeight;
+    case FrameRateRole: return track.frameRate;
     default: return QVariant();
     }
 }
@@ -80,6 +86,11 @@ QHash<int, QByteArray> PlaylistModel::roleNames() const
     roles[ChannelsRole] = "channels";
     roles[BitDepthRole] = "bitDepth";
     roles[BitrateRole] = "bitrate";
+    roles[HasVideoRole] = "hasVideo";
+    roles[VideoCodecRole] = "videoCodec";
+    roles[VideoWidthRole] = "videoWidth";
+    roles[VideoHeightRole] = "videoHeight";
+    roles[FrameRateRole] = "frameRate";
     return roles;
 }
 
@@ -96,9 +107,10 @@ void PlaylistModel::openFileDialog()
 {
     QStringList files = QFileDialog::getOpenFileNames(
         nullptr,
-        "Select Audio Files",
+        "Select Music or Video Files",
         QDir::homePath(),
-        "Audio Files (*.mp3 *.flac *.wav *.ogg *.m4a *.aac *.aiff *.opus *.wma)"
+        "Media Files (*.mp3 *.flac *.wav *.ogg *.m4a *.aac *.aiff *.aif *.opus *.wma "
+        "*.mkv *.mka *.mp4 *.m4v *.mov *.webm *.m2ts *.mts *.ts *.vob *.avi)"
     );
     for (const QString &file : files) {
         addFile(file);
@@ -108,7 +120,7 @@ void PlaylistModel::openFileDialog()
 void PlaylistModel::addFile(const QString &filePath)
 {
     QFileInfo fi(filePath);
-    if (!isSupportedAudioFile(fi)) return;
+    if (!isSupportedMediaFile(fi)) return;
 
     const QString absolutePath = fi.absoluteFilePath();
     for (const auto &track : std::as_const(m_tracks)) {
@@ -133,11 +145,16 @@ void PlaylistModel::addFile(const QString &filePath)
     item.container = metadata.container;
     item.formatLabel = metadata.formatLabel.isEmpty() ? "AUDIO" : metadata.formatLabel;
     item.artworkUrl = metadata.artworkUrl;
+    item.videoCodec = metadata.videoCodec;
     item.duration = metadata.duration;
+    item.frameRate = metadata.frameRate;
     item.sampleRate = metadata.sampleRate;
     item.channels = metadata.channels;
     item.bitDepth = metadata.bitDepth;
+    item.videoWidth = metadata.videoWidth;
+    item.videoHeight = metadata.videoHeight;
     item.bitrate = metadata.bitrate;
+    item.hasVideo = metadata.hasVideo;
     m_tracks.append(item);
     endInsertRows();
 
@@ -232,6 +249,11 @@ QVariantMap PlaylistModel::getTrack(int index) const
         map["channels"] = t.channels;
         map["bitDepth"] = t.bitDepth;
         map["bitrate"] = t.bitrate;
+        map["hasVideo"] = t.hasVideo;
+        map["videoCodec"] = t.videoCodec;
+        map["videoWidth"] = t.videoWidth;
+        map["videoHeight"] = t.videoHeight;
+        map["frameRate"] = t.frameRate;
     }
     return map;
 }

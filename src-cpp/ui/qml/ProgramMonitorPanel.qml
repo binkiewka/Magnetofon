@@ -1,4 +1,5 @@
 import QtQuick 2.15
+import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
 HifiPanel {
@@ -23,7 +24,12 @@ HifiPanel {
     property double bitrate: 0
     property double position: 0.0
     property double duration: 0.0
+    property var audioTracks: []
+    property int selectedAudioTrackId: -1
+    property string decodedAudioLabel: ""
+    property string sourceAudioLabel: ""
     signal seekRequested(double position)
+    signal audioTrackSelected(int trackId)
 
     property int progressIndex: duration > 0 ? Math.floor((position / duration) * 48) : 0
     Theme { id: theme }
@@ -38,6 +44,26 @@ HifiPanel {
             title: "INPUT & ACTIVE TRACK DECK"
             iconText: "●"
 
+            ComboBox {
+                id: audioTrackSelector
+                visible: root.audioTracks.length > 1
+                implicitWidth: 178
+                implicitHeight: 22
+                model: root.audioTracks
+                textRole: "label"
+                valueRole: "id"
+                currentIndex: root.audioTrackIndex()
+                font.family: theme.technicalFont
+                font.pixelSize: 7
+                onActivated: root.audioTrackSelected(currentValue)
+
+                background: Rectangle {
+                    radius: 4
+                    color: "#071219"
+                    border.color: audioTrackSelector.activeFocus ? theme.cyan : "#244552"
+                }
+            }
+
             Rectangle {
                 implicitWidth: 98
                 implicitHeight: 22
@@ -47,7 +73,8 @@ HifiPanel {
                 border.width: 1
                 Text {
                     anchors.centerIn: parent
-                    text: root.formatLabel
+                    text: root.audioTracks.length > 1 && root.sourceAudioLabel.length > 0
+                          ? root.sourceAudioLabel : root.formatLabel
                     color: theme.cyanBright
                     font.family: theme.technicalFont
                     font.pixelSize: 8
@@ -262,11 +289,19 @@ HifiPanel {
 
     function metadataLine() {
         var values = []
+        if (decodedAudioLabel.length > 0) values.push("OUT: " + decodedAudioLabel)
         if (trackNumber.length > 0) values.push("TRACK " + trackNumber)
         if (year.length > 0) values.push(year)
         if (genre.length > 0) values.push(genre.toUpperCase())
         if (albumArtist.length > 0 && albumArtist.toLowerCase() !== artist.toLowerCase())
             values.push("ALBUM ARTIST: " + albumArtist.toUpperCase())
         return values.join("  •  ")
+    }
+
+    function audioTrackIndex() {
+        for (var i = 0; i < audioTracks.length; ++i) {
+            if (audioTracks[i].id === selectedAudioTrackId) return i
+        }
+        return audioTracks.length > 0 ? 0 : -1
     }
 }

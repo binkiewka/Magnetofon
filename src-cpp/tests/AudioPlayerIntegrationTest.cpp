@@ -158,6 +158,105 @@ private slots:
                                                       player.sourceChannels()));
     }
 
+    void videoContainerIsAcceptedByPlaylist()
+    {
+        const QString path = m_tempDir.filePath(QStringLiteral("concert.mkv"));
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write("not-a-real-container");
+        file.close();
+
+        PlaylistModel playlist;
+        playlist.addFile(path);
+        QCOMPARE(playlist.count(), 1);
+        QCOMPARE(playlist.getTrack(0).value(QStringLiteral("filePath")).toString(), path);
+    }
+
+    void externalCompressedSurroundVideoDecodesToPcm()
+    {
+        const QString path = qEnvironmentVariable("MAGNETOFON_VIDEO_TEST_FILE");
+        if (path.isEmpty()) QSKIP("Set MAGNETOFON_VIDEO_TEST_FILE to test a real video");
+        QVERIFY2(QFileInfo::exists(path), qPrintable(QStringLiteral("Missing test file: ") + path));
+
+        const TrackMetadata metadata = TrackMetadataReader::read(path);
+        QVERIFY(metadata.hasVideo);
+        QVERIFY(metadata.videoWidth > 0);
+        QVERIFY(metadata.videoHeight > 0);
+        QVERIFY(metadata.channels > 2);
+        QVERIFY(metadata.codec.startsWith(QStringLiteral("DTS"))
+                || metadata.codec.contains(QStringLiteral("TRUEHD"))
+                || metadata.codec.contains(QStringLiteral("DOLBY DIGITAL")));
+
+        PlaylistModel playlist;
+        playlist.addFile(path);
+        QCOMPARE(playlist.count(), 1);
+        QVERIFY(playlist.getTrack(0).value(QStringLiteral("hasVideo")).toBool());
+
+        AudioPlayer player;
+        player.setVolume(0.0);
+        player.setSurroundMode(QStringLiteral("SURROUND"));
+        player.load(path);
+        player.play();
+        QTRY_VERIFY_WITH_TIMEOUT(player.hasLoadedMedia(), 7000);
+        QTRY_VERIFY_WITH_TIMEOUT(player.hasVideo(), 7000);
+        QTRY_VERIFY_WITH_TIMEOUT(!player.audioTracks().isEmpty(), 7000);
+        QCOMPARE(player.sourceChannels(), metadata.channels);
+        QVERIFY(!AudioRouting::shouldUpmixToSurround(player.surroundMode(), player.sourceChannels()));
+        QTRY_VERIFY_WITH_TIMEOUT(player.outputChannels() > 0, 7000);
+        QVERIFY(player.decodedAudioLabel().contains(QStringLiteral("PCM")));
+
+        player.hideVideo();
+        QTRY_VERIFY_WITH_TIMEOUT(!player.videoVisible(), 1000);
+        QVERIFY(player.isPlaying());
+        player.showVideo();
+        QTRY_VERIFY_WITH_TIMEOUT(player.videoVisible(), 1000);
+        player.stop();
+    }
+
+    void externalCompressedVideoLibraryIsRecognized()
+    {
+        const QString directoryPath = qEnvironmentVariable("MAGNETOFON_VIDEO_TEST_DIR");
+        if (directoryPath.isEmpty()) QSKIP("Set MAGNETOFON_VIDEO_TEST_DIR to scan a video library");
+
+        const QDir directory(directoryPath);
+        QVERIFY2(directory.exists(), qPrintable(QStringLiteral("Missing directory: ") + directoryPath));
+        const QFileInfoList files = directory.entryInfoList({QStringLiteral("*.mkv")},
+                                                             QDir::Files | QDir::Readable,
+                                                             QDir::Name | QDir::IgnoreCase);
+        QVERIFY(!files.isEmpty());
+
+        for (const QFileInfo &file : files) {
+            const TrackMetadata metadata = TrackMetadataReader::read(file.absoluteFilePath());
+            QVERIFY2(metadata.hasVideo, qPrintable(file.fileName() + QStringLiteral(" has no video stream")));
+            QVERIFY2(metadata.videoWidth > 0 && metadata.videoHeight > 0,
+                     qPrintable(file.fileName() + QStringLiteral(" has invalid video dimensions")));
+            QVERIFY2(metadata.channels > 2,
+                     qPrintable(file.fileName() + QStringLiteral(" is not multichannel")));
+            QVERIFY2(!metadata.codec.isEmpty(),
+                     qPrintable(file.fileName() + QStringLiteral(" has no recognized audio codec")));
+        }
+    }
+
+    void externalVideoAudioTrackCanBeSwitched()
+    {
+        const QString path = qEnvironmentVariable("MAGNETOFON_MULTITRACK_VIDEO_TEST_FILE");
+        if (path.isEmpty()) QSKIP("Set MAGNETOFON_MULTITRACK_VIDEO_TEST_FILE to test track selection");
+        QVERIFY2(QFileInfo::exists(path), qPrintable(QStringLiteral("Missing test file: ") + path));
+
+        AudioPlayer player;
+        player.setVolume(0.0);
+        player.load(path);
+        player.play();
+        QTRY_VERIFY_WITH_TIMEOUT(player.audioTracks().size() >= 2, 7000);
+
+        const QVariantMap target = player.audioTracks().constLast().toMap();
+        const int targetId = target.value(QStringLiteral("id")).toInt();
+        player.selectAudioTrack(targetId);
+        QTRY_COMPARE_WITH_TIMEOUT(player.selectedAudioTrackId(), targetId, 5000);
+        QTRY_COMPARE_WITH_TIMEOUT(player.sourceChannels(), target.value(QStringLiteral("channels")).toInt(), 5000);
+        player.stop();
+    }
+
     void droppedFilesFeedPlaylistAndSelection()
     {
         const QString first = createTone("first.wav", 220.0, 330.0, 0.5);
@@ -324,5 +423,5 @@ private slots:
     }
 };
 
-QTEST_GUILESS_MAIN(AudioPlayerIntegrationTest)
+QTEST_MAIN(AudioPlayerIntegrationTest)
 #include "AudioPlayerIntegrationTest.moc"

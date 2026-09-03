@@ -22,11 +22,16 @@ struct TrackItem {
     QString container;
     QString formatLabel;
     QString artworkUrl;
+    QString videoCodec;
     double duration = 0.0;
+    double frameRate = 0.0;
     int sampleRate = 0;
     int channels = 0;
     int bitDepth = 0;
+    int videoWidth = 0;
+    int videoHeight = 0;
     qint64 bitrate = 0;
+    bool hasVideo = false;
 };
 
 class PlaylistModel : public QAbstractListModel {
@@ -54,7 +59,12 @@ public:
         SampleRateRole,
         ChannelsRole,
         BitDepthRole,
-        BitrateRole
+        BitrateRole,
+        HasVideoRole,
+        VideoCodecRole,
+        VideoWidthRole,
+        VideoHeightRole,
+        FrameRateRole
     };
 
     explicit PlaylistModel(QObject *parent = nullptr);
@@ -87,7 +97,7 @@ signals:
     void emptied();
 
 private:
-    static bool isSupportedAudioFile(const QFileInfo &file);
+    static bool isSupportedMediaFile(const QFileInfo &file);
     QVector<TrackItem> m_tracks;
     int m_currentIndex = -1;
 };

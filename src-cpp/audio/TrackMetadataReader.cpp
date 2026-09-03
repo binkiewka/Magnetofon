@@ -58,10 +58,29 @@ QString codecLabel(AVCodecID codecId)
     if (name.compare("alac", Qt::CaseInsensitive) == 0) return QStringLiteral("ALAC");
     if (name.compare("vorbis", Qt::CaseInsensitive) == 0) return QStringLiteral("VORBIS");
     if (name.compare("opus", Qt::CaseInsensitive) == 0) return QStringLiteral("OPUS");
+    if (name.compare("dts", Qt::CaseInsensitive) == 0) return QStringLiteral("DTS");
+    if (name.compare("ac3", Qt::CaseInsensitive) == 0) return QStringLiteral("DOLBY DIGITAL");
+    if (name.compare("eac3", Qt::CaseInsensitive) == 0) return QStringLiteral("DOLBY DIGITAL PLUS");
+    if (name.compare("truehd", Qt::CaseInsensitive) == 0) return QStringLiteral("DOLBY TRUEHD");
     if (name.compare("wmav1", Qt::CaseInsensitive) == 0 ||
         name.compare("wmav2", Qt::CaseInsensitive) == 0 ||
         name.compare("wmapro", Qt::CaseInsensitive) == 0) return QStringLiteral("WMA");
     return name.toUpper();
+}
+
+QString audioCodecLabel(const AVCodecParameters *parameters)
+{
+    if (!parameters) return {};
+    if (parameters->codec_id == AV_CODEC_ID_DTS) {
+        switch (parameters->profile) {
+        case FF_PROFILE_DTS_HD_MA: return QStringLiteral("DTS-HD MA");
+        case FF_PROFILE_DTS_HD_HRA: return QStringLiteral("DTS-HD HRA");
+        case FF_PROFILE_DTS_96_24: return QStringLiteral("DTS 96/24");
+        case FF_PROFILE_DTS_EXPRESS: return QStringLiteral("DTS EXPRESS");
+        default: return QStringLiteral("DTS");
+        }
+    }
+    return codecLabel(parameters->codec_id);
 }
 #endif
 
@@ -162,6 +181,15 @@ TrackMetadata TrackMetadataReader::read(const QString &filePath)
     const int audioIndex = av_find_best_stream(context, AVMEDIA_TYPE_AUDIO, -1, -1, nullptr, 0);
     if (audioIndex >= 0) audioStream = context->streams[audioIndex];
 
+    AVStream *videoStream = nullptr;
+    const int videoIndex = av_find_best_stream(context, AVMEDIA_TYPE_VIDEO, -1, -1, nullptr, 0);
+    if (videoIndex >= 0) {
+        AVStream *candidate = context->streams[videoIndex];
+        if (candidate && !(candidate->disposition & AV_DISPOSITION_ATTACHED_PIC)) {
+            videoStream = candidate;
+        }
+    }
+
     metadata.title = firstTag(context, audioStream, {QStringLiteral("title")});
     metadata.artist = firstTag(context, audioStream, {QStringLiteral("artist")});
     metadata.album = firstTag(context, audioStream, {QStringLiteral("album")});
@@ -188,7 +216,7 @@ TrackMetadata TrackMetadataReader::read(const QString &filePath)
 
     if (audioStream && audioStream->codecpar) {
         const AVCodecParameters *parameters = audioStream->codecpar;
-        metadata.codec = codecLabel(parameters->codec_id);
+        metadata.codec = audioCodecLabel(parameters);
         metadata.sampleRate = parameters->sample_rate;
         metadata.channels = parameters->ch_layout.nb_channels;
         metadata.bitDepth = parameters->bits_per_raw_sample > 0
@@ -208,6 +236,16 @@ TrackMetadata TrackMetadataReader::read(const QString &filePath)
             metadata.formatLabel = metadata.codec;
             if (!channels.isEmpty()) metadata.formatLabel += QStringLiteral(" ") + channels;
         }
+    }
+
+    if (videoStream && videoStream->codecpar) {
+        const AVCodecParameters *parameters = videoStream->codecpar;
+        metadata.hasVideo = true;
+        metadata.videoCodec = codecLabel(parameters->codec_id);
+        metadata.videoWidth = parameters->width;
+        metadata.videoHeight = parameters->height;
+        const AVRational rate = av_guess_frame_rate(context, videoStream, nullptr);
+        if (rate.num > 0 && rate.den > 0) metadata.frameRate = av_q2d(rate);
     }
 
     for (unsigned int i = 0; i < context->nb_streams; ++i) {

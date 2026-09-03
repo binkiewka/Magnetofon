@@ -59,6 +59,7 @@ set(SOURCES
     models/PlaylistModel.cpp
     models/PresetPackDownloader.cpp
     models/VisualizerLauncher.cpp
+    ui/VideoWindow.cpp
     ui/VuMeterItem.cpp
 )
 
@@ -70,6 +71,7 @@ set(HEADERS
     models/PlaylistModel.hpp
     models/PresetPackDownloader.hpp
     models/VisualizerLauncher.hpp
+    ui/VideoWindow.hpp
     ui/VuMeterItem.hpp
 )
 
@@ -159,12 +161,14 @@ if(BUILD_TESTING)
         audio/TrackMetadataReader.cpp
         models/PlaylistModel.cpp
         models/VisualizerLauncher.cpp
+        ui/VideoWindow.cpp
         audio/AudioPlayer.hpp
         audio/AudioRouting.hpp
         audio/PulseAudioAnalyzer.hpp
         audio/TrackMetadataReader.hpp
         models/PlaylistModel.hpp
         models/VisualizerLauncher.hpp
+        ui/VideoWindow.hpp
     )
 
     target_include_directories(MagnetofonTests PRIVATE

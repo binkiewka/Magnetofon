@@ -158,6 +158,14 @@ ApplicationWindow {
                         spacing: 5
 
                         HifiButton {
+                            text: "VIDEO"
+                            iconSymbol: "▣"
+                            isCompact: true
+                            enabled: audioPlayer.hasVideo
+                            isPrimary: audioPlayer.videoVisible
+                            onClicked: audioPlayer.toggleVideo()
+                        }
+                        HifiButton {
                             text: "VISUALS"
                             iconSymbol: "◇"
                             isCompact: true
@@ -267,10 +275,15 @@ ApplicationWindow {
                             channels: playlistModel.currentIndex >= 0 ? playlistModel.getTrack(playlistModel.currentIndex).channels : 0
                             bitDepth: playlistModel.currentIndex >= 0 ? playlistModel.getTrack(playlistModel.currentIndex).bitDepth : 0
                             bitrate: playlistModel.currentIndex >= 0 ? playlistModel.getTrack(playlistModel.currentIndex).bitrate : 0
+                            audioTracks: audioPlayer.audioTracks
+                            selectedAudioTrackId: audioPlayer.selectedAudioTrackId
+                            decodedAudioLabel: audioPlayer.decodedAudioLabel
+                            sourceAudioLabel: audioPlayer.sourceAudioLabel
                             position: audioPlayer.position
                             duration: audioPlayer.duration > 0 ? audioPlayer.duration
                                                                : (playlistModel.currentIndex >= 0 ? playlistModel.getTrack(playlistModel.currentIndex).duration : 0)
                             onSeekRequested: function(position) { audioPlayer.seek(position) }
+                            onAudioTrackSelected: function(trackId) { audioPlayer.selectAudioTrack(trackId) }
                         }
 
                         CassettePanel {
@@ -362,4 +375,3 @@ ApplicationWindow {
         }
     }
 }
-

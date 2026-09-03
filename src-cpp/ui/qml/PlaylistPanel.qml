@@ -78,7 +78,7 @@ HifiPanel {
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: "DROP AUDIO FILES"
+                        text: "DROP MUSIC OR VIDEO FILES"
                         color: theme.cyanBright
                         font.family: theme.technicalFont
                         font.pixelSize: 9
@@ -139,7 +139,7 @@ HifiPanel {
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: "ADD AUDIO TO BEGIN PLAYBACK"
+                        text: "ADD MEDIA TO BEGIN PLAYBACK"
                         color: "#293c43"
                         font.family: theme.technicalFont
                         font.pixelSize: 7
@@ -268,5 +268,4 @@ HifiPanel {
         }
     }
 }
-
 

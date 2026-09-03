@@ -17,11 +17,16 @@ struct TrackMetadata {
     QString container;
     QString formatLabel;
     QString artworkUrl;
+    QString videoCodec;
     double duration = 0.0;
+    double frameRate = 0.0;
     int sampleRate = 0;
     int channels = 0;
     int bitDepth = 0;
+    int videoWidth = 0;
+    int videoHeight = 0;
     qint64 bitrate = 0;
+    bool hasVideo = false;
 };
 
 class TrackMetadataReader {
