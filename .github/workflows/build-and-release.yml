@@ -43,10 +43,39 @@ jobs:
             libavcodec-dev \
             libavutil-dev \
             libx11-dev \
+            ffmpeg \
             xvfb \
             desktop-file-utils \
             squashfs-tools \
             file
+
+      - name: Generate Multichannel Media Fixtures
+        run: |
+          mkdir -p ci-fixtures
+
+          ffmpeg -hide_banner -loglevel error -y \
+            -f lavfi -i "testsrc2=size=320x180:rate=24:duration=3" \
+            -f lavfi -i "aevalsrc=0.10*sin(2*PI*220*t)|0.10*sin(2*PI*330*t)|0.10*sin(2*PI*440*t)|0.05*sin(2*PI*55*t)|0.10*sin(2*PI*550*t)|0.10*sin(2*PI*660*t):s=48000:d=3:c=5.1" \
+            -f lavfi -i "aevalsrc=0.10*sin(2*PI*440*t)|0.10*sin(2*PI*660*t):s=48000:d=3:c=stereo" \
+            -map 0:v:0 -map 1:a:0 -map 2:a:0 \
+            -c:v ffv1 \
+            -c:a:0 ac3 -b:a:0 640k \
+            -metadata:s:a:0 language=eng \
+            -metadata:s:a:0 title="Dolby Digital 5.1" \
+            -disposition:a:0 default \
+            -c:a:1 flac \
+            -metadata:s:a:1 language=eng \
+            -metadata:s:a:1 title="Lossless Stereo" \
+            -disposition:a:1 0 \
+            -shortest ci-fixtures/multichannel-video.mkv
+
+          ffmpeg -hide_banner -loglevel error -y \
+            -f lavfi -i "aevalsrc=0.10*sin(2*PI*220*t)|0.10*sin(2*PI*330*t)|0.10*sin(2*PI*440*t)|0.05*sin(2*PI*55*t)|0.10*sin(2*PI*550*t)|0.10*sin(2*PI*660*t):s=48000:d=2:c=5.1" \
+            -c:a flac ci-fixtures/multichannel.flac
+
+          ffprobe -v error \
+            -show_entries stream=index,codec_type,codec_name,sample_rate,channels,channel_layout,width,height \
+            -of compact ci-fixtures/multichannel-video.mkv
 
       - name: Configure CMake
         run: |
@@ -61,7 +90,11 @@ jobs:
 
       - name: Run Integration Tests
         run: |
-          xvfb-run --auto-servernum ctest --test-dir src-cpp/build --output-on-failure
+          MAGNETOFON_SURROUND_TEST_FILE="$GITHUB_WORKSPACE/ci-fixtures/multichannel.flac" \
+          MAGNETOFON_VIDEO_TEST_FILE="$GITHUB_WORKSPACE/ci-fixtures/multichannel-video.mkv" \
+          MAGNETOFON_MULTITRACK_VIDEO_TEST_FILE="$GITHUB_WORKSPACE/ci-fixtures/multichannel-video.mkv" \
+          MAGNETOFON_VIDEO_TEST_DIR="$GITHUB_WORKSPACE/ci-fixtures" \
+            xvfb-run --auto-servernum ctest --test-dir src-cpp/build --output-on-failure
 
       - name: Smoke Test Bundled projectM Runtime
         run: |
@@ -120,6 +153,7 @@ jobs:
           set +e
           APPIMAGE_EXTRACT_AND_RUN=1 timeout 8s xvfb-run --auto-servernum \
             release-artifacts/Magnetofon-x86_64.AppImage \
+            "$GITHUB_WORKSPACE/ci-fixtures/multichannel-video.mkv" \
             > appimage-smoke.log 2>&1
           appimage_status=$?
           set -e
@@ -127,6 +161,7 @@ jobs:
             cat appimage-smoke.log
             exit 1
           fi
+          grep -F "[AudioPlayer] Source audio channels: 6" appimage-smoke.log
 
 
       - name: Upload Linux Artifacts
