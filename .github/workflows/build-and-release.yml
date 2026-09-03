@@ -94,7 +94,8 @@ jobs:
           MAGNETOFON_VIDEO_TEST_FILE="$GITHUB_WORKSPACE/ci-fixtures/multichannel-video.mkv" \
           MAGNETOFON_MULTITRACK_VIDEO_TEST_FILE="$GITHUB_WORKSPACE/ci-fixtures/multichannel-video.mkv" \
           MAGNETOFON_VIDEO_TEST_DIR="$GITHUB_WORKSPACE/ci-fixtures" \
-            xvfb-run --auto-servernum ctest --test-dir src-cpp/build --output-on-failure
+          QT_QPA_PLATFORM=offscreen \
+            ctest --test-dir src-cpp/build --output-on-failure
 
       - name: Smoke Test Bundled projectM Runtime
         run: |
