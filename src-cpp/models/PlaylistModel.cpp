@@ -3,8 +3,15 @@
 #include <QFileInfo>
 #include <QUuid>
 #include <QFileDialog>
+#include <QCollator>
 #include <QDir>
+#include <QDirIterator>
+#include <QFile>
+#include <QLocale>
+#include <QSaveFile>
 #include <QSet>
+#include <QStringConverter>
+#include <QTextStream>
 #include <algorithm>
 #include <utility>
 
@@ -117,6 +124,43 @@ void PlaylistModel::openFileDialog()
     }
 }
 
+void PlaylistModel::openFolderDialog()
+{
+    const QString directory = QFileDialog::getExistingDirectory(
+        nullptr,
+        QStringLiteral("Discover Music Library"),
+        QDir::homePath(),
+        QFileDialog::ShowDirsOnly
+    );
+    if (!directory.isEmpty()) addFolder(directory);
+}
+
+void PlaylistModel::loadPlaylistDialog()
+{
+    const QString playlist = QFileDialog::getOpenFileName(
+        nullptr,
+        QStringLiteral("Load Playlist"),
+        QDir::homePath(),
+        QStringLiteral("M3U Playlists (*.m3u8 *.m3u)")
+    );
+    if (!playlist.isEmpty()) loadPlaylist(playlist);
+}
+
+void PlaylistModel::savePlaylistDialog()
+{
+    if (m_tracks.isEmpty()) return;
+
+    QString playlist = QFileDialog::getSaveFileName(
+        nullptr,
+        QStringLiteral("Save Playlist"),
+        QDir::home().filePath(QStringLiteral("Magnetofon Playlist.m3u8")),
+        QStringLiteral("M3U8 Playlist (*.m3u8)")
+    );
+    if (playlist.isEmpty()) return;
+    if (QFileInfo(playlist).suffix().isEmpty()) playlist += QStringLiteral(".m3u8");
+    savePlaylist(playlist);
+}
+
 void PlaylistModel::addFile(const QString &filePath)
 {
     QFileInfo fi(filePath);
@@ -165,11 +209,103 @@ void PlaylistModel::addFile(const QString &filePath)
     }
 }
 
+void PlaylistModel::addFolder(const QString &directoryPath)
+{
+    const QDir root(directoryPath);
+    if (!root.exists()) return;
+
+    QStringList mediaFiles;
+    QDirIterator iterator(root.absolutePath(),
+                          QDir::Files | QDir::Readable | QDir::NoDotAndDotDot,
+                          QDirIterator::Subdirectories);
+    while (iterator.hasNext()) {
+        const QFileInfo file(iterator.next());
+        if (isSupportedMediaFile(file)) mediaFiles.append(file.absoluteFilePath());
+    }
+
+    // The C locale ignores QCollator's numeric mode. Use a Unicode-aware locale
+    // explicitly so numbered album and track names retain natural order.
+    QCollator collator(QLocale(QLocale::English));
+    collator.setCaseSensitivity(Qt::CaseInsensitive);
+    collator.setNumericMode(true);
+    std::sort(mediaFiles.begin(), mediaFiles.end(), [&root, &collator](const QString &left,
+                                                                       const QString &right) {
+        return collator.compare(root.relativeFilePath(left), root.relativeFilePath(right)) < 0;
+    });
+
+    const int previousCount = m_tracks.size();
+    for (const QString &file : std::as_const(mediaFiles)) addFile(file);
+    emit folderDiscovered(root.absolutePath(), m_tracks.size() - previousCount);
+}
+
 void PlaylistModel::addFiles(const QList<QUrl> &urls)
 {
     for (const QUrl &url : urls) {
-        addFile(url.toLocalFile());
+        const QString path = url.toLocalFile();
+        if (QFileInfo(path).isDir()) addFolder(path);
+        else addFile(path);
     }
+}
+
+bool PlaylistModel::loadPlaylist(const QString &playlistPath)
+{
+    QFile playlistFile(playlistPath);
+    if (!playlistFile.open(QIODevice::ReadOnly | QIODevice::Text)) return false;
+
+    QTextStream stream(&playlistFile);
+    stream.setEncoding(QStringConverter::Utf8);
+    const QDir playlistDirectory(QFileInfo(playlistPath).absolutePath());
+    QStringList mediaFiles;
+    QSet<QString> seenPaths;
+
+    while (!stream.atEnd()) {
+        const QString entry = stream.readLine().trimmed();
+        if (entry.isEmpty() || entry.startsWith(QLatin1Char('#'))) continue;
+
+        const QUrl url(entry);
+        QString path = url.isLocalFile() ? url.toLocalFile() : entry;
+        if (QDir::isRelativePath(path)) path = playlistDirectory.absoluteFilePath(path);
+
+        const QFileInfo file(path);
+        if (!isSupportedMediaFile(file)) continue;
+        const QString absolutePath = file.absoluteFilePath();
+        if (!seenPaths.contains(absolutePath)) {
+            seenPaths.insert(absolutePath);
+            mediaFiles.append(absolutePath);
+        }
+    }
+
+    if (mediaFiles.isEmpty()) return false;
+    clear();
+    for (const QString &path : std::as_const(mediaFiles)) addFile(path);
+    return true;
+}
+
+bool PlaylistModel::savePlaylist(const QString &playlistPath) const
+{
+    if (m_tracks.isEmpty()) return false;
+
+    QSaveFile playlistFile(playlistPath);
+    if (!playlistFile.open(QIODevice::WriteOnly | QIODevice::Text)) return false;
+
+    QTextStream stream(&playlistFile);
+    stream.setEncoding(QStringConverter::Utf8);
+    stream << "#EXTM3U\n";
+
+    const QDir playlistDirectory(QFileInfo(playlistPath).absolutePath());
+    for (const TrackItem &track : m_tracks) {
+        QString displayName = track.title;
+        if (!track.artist.isEmpty() && track.artist != QStringLiteral("Unknown Artist")) {
+            displayName.prepend(track.artist + QStringLiteral(" - "));
+        }
+        displayName.replace(QLatin1Char('\n'), QLatin1Char(' '));
+        displayName.replace(QLatin1Char('\r'), QLatin1Char(' '));
+
+        stream << "#EXTINF:" << qRound64(track.duration) << ',' << displayName << '\n';
+        stream << QDir::fromNativeSeparators(playlistDirectory.relativeFilePath(track.filePath)) << '\n';
+    }
+    stream.flush();
+    return stream.status() == QTextStream::Ok && playlistFile.commit();
 }
 
 void PlaylistModel::removeTrack(int index)

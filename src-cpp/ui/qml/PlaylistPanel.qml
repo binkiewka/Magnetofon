@@ -10,6 +10,9 @@ HifiPanel {
 
     property bool isExpanded: false
     signal fileOpenRequested()
+    signal folderOpenRequested()
+    signal playlistLoadRequested()
+    signal playlistSaveRequested()
     signal clearRequested()
     Theme { id: theme }
 
@@ -25,8 +28,7 @@ HifiPanel {
             iconText: "▥"
 
             HifiButton { text: "ADD"; iconSymbol: "+"; isCompact: true; onClicked: root.fileOpenRequested() }
-            HifiButton { text: "LOAD"; isCompact: true; onClicked: root.fileOpenRequested() }
-            HifiButton { text: "SAVE"; isCompact: true }
+            HifiButton { text: "DISCOVER"; iconSymbol: "⌕"; isCompact: true; onClicked: root.folderOpenRequested() }
             HifiButton { text: "CLEAR"; isStop: true; isCompact: true; onClicked: root.clearRequested() }
         }
 
@@ -78,7 +80,7 @@ HifiPanel {
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: "DROP MUSIC OR VIDEO FILES"
+                        text: "DROP MUSIC, VIDEO, OR A FOLDER"
                         color: theme.cyanBright
                         font.family: theme.technicalFont
                         font.pixelSize: 9
@@ -139,7 +141,7 @@ HifiPanel {
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: "ADD MEDIA TO BEGIN PLAYBACK"
+                        text: "ADD MEDIA OR DISCOVER A LIBRARY"
                         color: "#293c43"
                         font.family: theme.technicalFont
                         font.pixelSize: 7
@@ -250,6 +252,19 @@ HifiPanel {
                 font.letterSpacing: 0.8
             }
             Item { Layout.fillWidth: true }
+            HifiButton {
+                text: "LOAD"
+                iconSymbol: "↥"
+                isCompact: true
+                onClicked: root.playlistLoadRequested()
+            }
+            HifiButton {
+                text: "SAVE"
+                iconSymbol: "↧"
+                isCompact: true
+                enabled: playlistModel.count > 0
+                onClicked: root.playlistSaveRequested()
+            }
             HifiButton {
                 text: root.isExpanded ? "RESTORE" : "EXPAND"
                 iconSymbol: root.isExpanded ? "↙" : "↗"

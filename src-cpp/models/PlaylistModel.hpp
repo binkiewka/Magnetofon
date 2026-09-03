@@ -79,8 +79,14 @@ public:
 
 public slots:
     void openFileDialog();
+    void openFolderDialog();
+    void loadPlaylistDialog();
+    void savePlaylistDialog();
     void addFile(const QString &filePath);
+    void addFolder(const QString &directoryPath);
     void addFiles(const QList<QUrl> &urls);
+    bool loadPlaylist(const QString &playlistPath);
+    bool savePlaylist(const QString &playlistPath) const;
     void removeTrack(int index);
     void clear();
     void moveTrack(int from, int to);
@@ -94,6 +100,7 @@ signals:
     void countChanged();
     void currentIndexChanged();
     void trackSelected(const QString &filePath);
+    void folderDiscovered(const QString &directoryPath, int addedCount);
     void emptied();
 
 private:

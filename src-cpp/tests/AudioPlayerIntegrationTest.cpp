@@ -300,6 +300,72 @@ private slots:
         QCOMPARE(emptied.count(), 1);
     }
 
+    void nestedFolderDiscoveryUsesNaturalOrderAndAvoidsDuplicates()
+    {
+        const QString library = m_tempDir.filePath(QStringLiteral("discovery-library"));
+        QVERIFY(QDir().mkpath(library + QStringLiteral("/Album 2")));
+        QVERIFY(QDir().mkpath(library + QStringLiteral("/Album 10/Disc 1")));
+
+        const QString first = createTone(QStringLiteral("discovery-library/Album 2/02 - Second.wav"),
+                                         220.0, 330.0, 0.2);
+        const QString second = createTone(QStringLiteral("discovery-library/Album 2/10 - Tenth.flac"),
+                                          330.0, 440.0, 0.2);
+        const QString third = createTone(QStringLiteral("discovery-library/Album 10/Disc 1/01 - Finale.wav"),
+                                         440.0, 550.0, 0.2);
+        QVERIFY(!first.isEmpty());
+        QVERIFY(!second.isEmpty());
+        QVERIFY(!third.isEmpty());
+
+        QFile ignored(library + QStringLiteral("/Album 2/cover.jpg"));
+        QVERIFY(ignored.open(QIODevice::WriteOnly));
+        ignored.write("not media");
+        ignored.close();
+
+        PlaylistModel playlist;
+        QSignalSpy discovered(&playlist, &PlaylistModel::folderDiscovered);
+        playlist.addFolder(library);
+
+        QCOMPARE(playlist.count(), 3);
+        QCOMPARE(discovered.count(), 1);
+        QCOMPARE(discovered.constFirst().at(1).toInt(), 3);
+        QCOMPARE(playlist.getTrack(0).value(QStringLiteral("filePath")).toString(), first);
+        QCOMPARE(playlist.getTrack(1).value(QStringLiteral("filePath")).toString(), second);
+        QCOMPARE(playlist.getTrack(2).value(QStringLiteral("filePath")).toString(), third);
+
+        playlist.addFiles({QUrl::fromLocalFile(library)});
+        QCOMPARE(playlist.count(), 3);
+        QCOMPARE(discovered.count(), 2);
+        QCOMPARE(discovered.constLast().at(1).toInt(), 0);
+    }
+
+    void playlistM3u8RoundTripPreservesOrder()
+    {
+        const QString first = createTone(QStringLiteral("playlist-first.wav"), 220.0, 330.0, 0.2);
+        const QString second = createTone(QStringLiteral("playlist-second.wav"), 440.0, 550.0, 0.2);
+        const QString playlistPath = m_tempDir.filePath(QStringLiteral("saved-playlist.m3u8"));
+
+        PlaylistModel source;
+        source.addFile(second);
+        source.addFile(first);
+        QVERIFY(source.savePlaylist(playlistPath));
+
+        QFile savedPlaylist(playlistPath);
+        QVERIFY(savedPlaylist.open(QIODevice::ReadOnly | QIODevice::Text));
+        const QByteArray contents = savedPlaylist.readAll();
+        QVERIFY(contents.startsWith("#EXTM3U\n"));
+        QVERIFY(contents.contains("playlist-second.wav"));
+        QVERIFY(contents.contains("playlist-first.wav"));
+
+        PlaylistModel restored;
+        QVERIFY(restored.loadPlaylist(playlistPath));
+        QCOMPARE(restored.count(), 2);
+        QCOMPARE(restored.getTrack(0).value(QStringLiteral("filePath")).toString(), second);
+        QCOMPARE(restored.getTrack(1).value(QStringLiteral("filePath")).toString(), first);
+
+        QVERIFY(restored.loadPlaylist(playlistPath));
+        QCOMPARE(restored.count(), 2);
+    }
+
     void folderArtworkIsDiscovered()
     {
         const QString albumDirectory = m_tempDir.filePath("folder-art-album");

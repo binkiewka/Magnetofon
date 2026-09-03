@@ -235,6 +235,9 @@ ApplicationWindow {
                             Layout.fillHeight: true
                             Layout.minimumHeight: 190
                             onFileOpenRequested: playlistModel.openFileDialog()
+                            onFolderOpenRequested: playlistModel.openFolderDialog()
+                            onPlaylistLoadRequested: playlistModel.loadPlaylistDialog()
+                            onPlaylistSaveRequested: playlistModel.savePlaylistDialog()
                             onClearRequested: playlistModel.clear()
                         }
 
