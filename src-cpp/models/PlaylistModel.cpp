@@ -225,7 +225,7 @@ void PlaylistModel::addFolder(const QString &directoryPath)
 
     // The C locale ignores QCollator's numeric mode. Use a Unicode-aware locale
     // explicitly so numbered album and track names retain natural order.
-    QCollator collator(QLocale(QLocale::English));
+    QCollator collator{QLocale{QLocale::English}};
     collator.setCaseSensitivity(Qt::CaseInsensitive);
     collator.setNumericMode(true);
     std::sort(mediaFiles.begin(), mediaFiles.end(), [&root, &collator](const QString &left,

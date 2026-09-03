@@ -34,7 +34,10 @@ if ! command -v xvfb-run >/dev/null 2>&1; then
 fi
 
 set +e
-timeout 14s xvfb-run --auto-servernum env SDL_AUDIODRIVER=dummy \
+# Hosted runners can take around ten seconds to initialise SDL/projectM before
+# the first preset appears. Leave enough time to observe multiple timed
+# rotations after startup instead of treating a slow runner as a failure.
+timeout 24s xvfb-run --auto-servernum env SDL_AUDIODRIVER=dummy \
   "$BINARY" \
   --presetPath="$ROOT/visuals/curated/presets" \
   --texturePath="$RUNTIME/textures" \
