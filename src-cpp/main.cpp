@@ -88,6 +88,14 @@ int main(int argc, char *argv[])
     PresetPackDownloader packDownloader;
     VisualizerLauncher visualizerLauncher;
 
+    // Keep shutdown deterministic even while auxiliary video/visualizer windows
+    // are open. AudioPlayer and VisualizerLauncher destructors perform the final
+    // synchronous libmpv/process cleanup after the event loop exits.
+    QObject::connect(&app, &QCoreApplication::aboutToQuit,
+                     &player, &AudioPlayer::stop);
+    QObject::connect(&app, &QCoreApplication::aboutToQuit,
+                     &visualizerLauncher, &VisualizerLauncher::stopVisuals);
+
     QObject::connect(&packDownloader, &PresetPackDownloader::isInstalledChanged,
                      &visualizerLauncher, &VisualizerLauncher::refreshPresetLibrary);
 

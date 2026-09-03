@@ -14,6 +14,10 @@ ApplicationWindow {
     color: "#080a08"
     flags: Qt.FramelessWindowHint | Qt.Window
 
+    // The video surface is a separate top-level window, so Qt cannot infer that
+    // closing this console means the whole application should exit.
+    onClosing: Qt.quit()
+
     Theme { id: theme }
 
     Item {

@@ -8,7 +8,7 @@ namespace {
 
 int countPresetsRecursively(const QString &directory)
 {
-    if (!QDir(directory).exists()) return 0;
+    if (directory.isEmpty() || !QDir(directory).exists()) return 0;
 
     QDirIterator iterator(directory,
                           {QStringLiteral("*.milk"), QStringLiteral("*.prjm")},
@@ -33,11 +33,23 @@ PresetPackDownloader::PresetPackDownloader(QObject *parent)
 QString PresetPackDownloader::targetDirectory() const
 {
     const QString appData = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    QDir dir(appData);
-    if (!dir.exists("visuals")) {
-        dir.mkdir("visuals");
+    if (appData.isEmpty()) return {};
+
+    const QString directory = QDir(appData).filePath(QStringLiteral("visuals"));
+    // AppDataLocation itself normally does not exist on a fresh install. mkdir()
+    // cannot create its missing parents, so packaged builds failed before the
+    // network request even started. mkpath() creates the complete user-owned path.
+    if (!QDir().mkpath(directory)) {
+        qWarning() << "[PresetPackDownloader] Failed to create preset directory:" << directory;
+        return {};
     }
-    return appData + "/visuals";
+
+    const QFileInfo info(directory);
+    if (!info.isDir() || !info.isWritable()) {
+        qWarning() << "[PresetPackDownloader] Preset directory is not writable:" << directory;
+        return {};
+    }
+    return QDir::cleanPath(directory);
 }
 
 void PresetPackDownloader::checkInstallationStatus()
@@ -67,11 +79,19 @@ void PresetPackDownloader::downloadPack()
     if (m_isDownloading) return;
 
     const QString targetDir = targetDirectory();
+    if (targetDir.isEmpty()) {
+        const QString appData = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+        m_statusMessage = QStringLiteral("Failed to create writable preset folder: %1")
+                              .arg(QDir(appData).filePath(QStringLiteral("visuals")));
+        emit statusMessageChanged();
+        return;
+    }
     const QString zipPath = targetDir + "/Isosceles_CreamOfTheCrop_MilkdropPresetsPack.zip";
 
     m_outputFile.setFileName(zipPath);
     if (!m_outputFile.open(QIODevice::WriteOnly)) {
-        m_statusMessage = "Failed to create output file for preset pack download.";
+        m_statusMessage = QStringLiteral("Failed to create preset download: %1")
+                              .arg(m_outputFile.errorString());
         emit statusMessageChanged();
         return;
     }

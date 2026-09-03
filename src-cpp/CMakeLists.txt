@@ -160,6 +160,7 @@ if(BUILD_TESTING)
         audio/PulseAudioAnalyzer.cpp
         audio/TrackMetadataReader.cpp
         models/PlaylistModel.cpp
+        models/PresetPackDownloader.cpp
         models/VisualizerLauncher.cpp
         ui/VideoWindow.cpp
         audio/AudioPlayer.hpp
@@ -167,6 +168,7 @@ if(BUILD_TESTING)
         audio/PulseAudioAnalyzer.hpp
         audio/TrackMetadataReader.hpp
         models/PlaylistModel.hpp
+        models/PresetPackDownloader.hpp
         models/VisualizerLauncher.hpp
         ui/VideoWindow.hpp
     )
@@ -180,6 +182,7 @@ if(BUILD_TESTING)
         Qt6::Core
         Qt6::Test
         Qt6::Widgets
+        Qt6::Network
         ${EXTRA_LIBS}
     )
 

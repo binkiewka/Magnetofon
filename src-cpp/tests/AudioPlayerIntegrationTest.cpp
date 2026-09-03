@@ -3,6 +3,7 @@
 #include "AudioPlayer.hpp"
 #include "AudioRouting.hpp"
 #include "PlaylistModel.hpp"
+#include "PresetPackDownloader.hpp"
 #include "TrackMetadataReader.hpp"
 #include "VisualizerLauncher.hpp"
 
@@ -10,6 +11,7 @@
 #include <QDir>
 #include <QFile>
 #include <QSignalSpy>
+#include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QUrl>
 
@@ -315,6 +317,25 @@ private slots:
         QCOMPARE(playlist.count(), 1);
         QCOMPARE(playlist.getTrack(0).value("artworkUrl").toString(),
                  QUrl::fromLocalFile(coverPath).toString());
+    }
+
+    void presetDownloaderCreatesNestedUserStorage()
+    {
+        const bool hadDataHome = qEnvironmentVariableIsSet("XDG_DATA_HOME");
+        const QByteArray previousDataHome = qgetenv("XDG_DATA_HOME");
+        const QString dataHome = m_tempDir.filePath(QStringLiteral("missing/parents/user-data"));
+        QVERIFY(!QDir(dataHome).exists());
+        QVERIFY(qputenv("XDG_DATA_HOME", dataHome.toUtf8()));
+
+        PresetPackDownloader downloader;
+        const QString expected = QDir(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation))
+                                     .filePath(QStringLiteral("visuals"));
+        const QFileInfo storage(expected);
+        QVERIFY2(storage.isDir(), qPrintable(QStringLiteral("Preset directory was not created: ") + expected));
+        QVERIFY2(storage.isWritable(), qPrintable(QStringLiteral("Preset directory is not writable: ") + expected));
+
+        if (hadDataHome) qputenv("XDG_DATA_HOME", previousDataHome);
+        else qunsetenv("XDG_DATA_HOME");
     }
 
     void playbackTransportAndAnalysisAreWired()
