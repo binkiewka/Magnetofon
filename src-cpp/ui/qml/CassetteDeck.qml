@@ -216,7 +216,7 @@ Item {
                     height: width
                     tapeFill: 0.34 + root.fillPct * 0.38
                     running: root.isPlaying
-                    reverse: false
+                    reverse: true
                 }
 
                 CassetteReel {
@@ -227,7 +227,7 @@ Item {
                     height: width
                     tapeFill: 0.72 - root.fillPct * 0.38
                     running: root.isPlaying
-                    reverse: false
+                    reverse: true
                 }
 
                 Column {

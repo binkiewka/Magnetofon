@@ -250,13 +250,6 @@ HifiPanel {
                 font.letterSpacing: 0.8
             }
             Item { Layout.fillWidth: true }
-            Text {
-                text: "44.1 kHz  •  STEREO"
-                color: "#49656c"
-                font.family: theme.technicalFont
-                font.pixelSize: 7
-                font.letterSpacing: 0.7
-            }
             HifiButton {
                 text: root.isExpanded ? "RESTORE" : "EXPAND"
                 iconSymbol: root.isExpanded ? "↙" : "↗"
@@ -268,4 +261,3 @@ HifiPanel {
         }
     }
 }
-
