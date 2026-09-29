@@ -1,4 +1,5 @@
 import QtQuick 2.15
+import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
 HifiPanel {
@@ -7,6 +8,8 @@ HifiPanel {
     implicitHeight: 220
     title: "TAPE PLAYBACK ENGINE"
 
+    property bool gaplessEnabled: false
+    signal gaplessToggled(bool enabled)
     property bool isPlaying: false
     property double progress: 0.0
     property double duration: 1.0
@@ -106,6 +109,16 @@ HifiPanel {
                     font.pixelSize: 7
                     font.letterSpacing: 0.9
                     Layout.leftMargin: 4
+                }
+
+                HifiButton {
+                    objectName: "gaplessButton"
+                    text: "GAPLESS"
+                    isCompact: true
+                    isPrimary: root.gaplessEnabled
+                    onClicked: root.gaplessToggled(!root.gaplessEnabled)
+                    ToolTip.visible: hovered
+                    ToolTip.text: "Continuous album playback · no added pauses or crossfade"
                 }
 
                 Item { Layout.fillWidth: true }

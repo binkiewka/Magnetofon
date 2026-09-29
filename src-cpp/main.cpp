@@ -8,6 +8,14 @@
 #include <QImage>
 #include <QDebug>
 #include <QFileInfo>
+#include <QLocalServer>
+#include <QLocalSocket>
+#include <QLockFile>
+#include <QStandardPaths>
+#include <QDir>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QThread>
 
 #include "AudioPlayer.hpp"
 #include "PlaylistModel.hpp"
@@ -74,6 +82,38 @@ int main(int argc, char *argv[])
     app.setOrganizationName("Magnetofon");
     app.setApplicationVersion(QString::fromLatin1(MAGNETOFON_VERSION));
 
+    QStringList incomingPaths;
+    for (const QString &argument : app.arguments().mid(1)) {
+        const QUrl url(argument);
+        incomingPaths.append(QFileInfo(url.isLocalFile() ? url.toLocalFile() : argument).absoluteFilePath());
+    }
+    const QString runtime = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
+    const QString endpoint = runtime + QStringLiteral("/magnetofon-player");
+    QLockFile instanceLock(endpoint + QStringLiteral(".lock"));
+    if (!instanceLock.tryLock()) {
+        QLocalSocket socket;
+        for (int attempt = 0; attempt < 50; ++attempt) {
+            socket.connectToServer(endpoint);
+            if (socket.waitForConnected(100)) break;
+            socket.abort();
+            QThread::msleep(100);
+        }
+        if (socket.state() != QLocalSocket::ConnectedState) {
+            qCritical() << "Could not contact the running Magnetofon instance";
+            return 1;
+        }
+        socket.write(QJsonDocument(QJsonArray::fromStringList(incomingPaths)).toJson(QJsonDocument::Compact) + '\n');
+        if (!socket.waitForBytesWritten(3000) || !socket.waitForReadyRead(5000)) return 1;
+        return socket.readAll().startsWith("OK") ? 0 : 1;
+    }
+    QLocalServer::removeServer(endpoint);
+    QLocalServer server;
+    server.setSocketOptions(QLocalServer::UserAccessOption);
+    if (!server.listen(endpoint)) {
+        qCritical() << "Cannot listen for file-open requests:" << server.errorString();
+        return 1;
+    }
+
     const QIcon appIcon(QStringLiteral(":/resources/icon-256.png"));
     const QImage appIconImage(QStringLiteral(":/resources/icon-256.png"));
     app.setWindowIcon(appIcon);
@@ -99,23 +139,32 @@ int main(int argc, char *argv[])
     QObject::connect(&packDownloader, &PresetPackDownloader::isInstalledChanged,
                      &visualizerLauncher, &VisualizerLauncher::refreshPresetLibrary);
 
-    // Connect playlist track selection directly to audio player in C++
+    player.setPlaylist(&playlist);
 
-    QObject::connect(&playlist, &PlaylistModel::trackSelected, &player, [&player](const QString &filePath) {
-        player.load(filePath);
-        player.play();
+    for (const QString &path : incomingPaths) playlist.addFile(path);
+    QObject::connect(&server, &QLocalServer::newConnection, &app, [&]() {
+        while (auto *socket = server.nextPendingConnection()) {
+            QObject::connect(socket, &QLocalSocket::disconnected, socket, &QObject::deleteLater);
+            const auto receive = [&, socket]() {
+                if (!socket->canReadLine()) return;
+                const auto document = QJsonDocument::fromJson(socket->readLine());
+                if (!document.isArray()) { socket->disconnectFromServer(); return; }
+                for (const auto &path : document.array()) playlist.addFile(path.toString());
+                for (QWindow *window : app.topLevelWindows()) {
+                    if (window->title().startsWith("MAGNETOFON")) {
+                        if (window->visibility() == QWindow::Minimized) window->showNormal();
+                        window->raise();
+                        window->requestActivate();
+                    }
+                }
+                socket->write("OK\n");
+                socket->flush();
+                socket->disconnectFromServer();
+            };
+            QObject::connect(socket, &QLocalSocket::readyRead, &app, receive);
+            receive();
+        }
     });
-
-    QObject::connect(&player, &AudioPlayer::trackEnded, &playlist, [&playlist]() {
-        playlist.nextTrack();
-    });
-
-    QObject::connect(&playlist, &PlaylistModel::emptied, &player, &AudioPlayer::stop);
-
-    const QStringList arguments = QCoreApplication::arguments();
-    for (int i = 1; i < arguments.size(); ++i) {
-        playlist.addFile(QFileInfo(arguments.at(i)).absoluteFilePath());
-    }
 
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty("audioPlayer", &player);

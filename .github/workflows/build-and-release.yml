@@ -42,6 +42,7 @@ jobs:
             libavformat-dev \
             libavcodec-dev \
             libavutil-dev \
+            libavfilter-dev \
             libx11-dev \
             ffmpeg \
             xvfb \

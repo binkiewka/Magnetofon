@@ -333,7 +333,7 @@ Rectangle {
                                         font.weight: Font.DemiBold
                                     }
                                     Text {
-                                        text: "Borderless removes the title bar and frame. Use F or F11 inside the visualizer for fullscreen."
+                                        text: "Drag the top strip to move the window; drag any edge or corner to resize, including in borderless mode. F or F11 toggles fullscreen."
                                         color: theme.textMuted
                                         font.family: theme.uiFont
                                         font.pixelSize: 8

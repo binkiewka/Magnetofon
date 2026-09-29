@@ -49,7 +49,7 @@
 ## Key Features
 
 ### Hi-Fi Audio Console Modules
-- **Power Stage (`AmplifierPanel`)**: Knurled aluminum Master Volume knob centered on dark metallic faceplate with 11-tick cyan scale, plus vertical playback mode buttons (`AUTO`, `STEREO`, `SURROUND`).
+- **Power Stage (`AmplifierPanel`)**: Knurled aluminum Master Volume knob centered on dark metallic faceplate with 11-tick cyan scale, plus vertical playback mode buttons (`AUTO`, `2.1`, `SURROUND`).
 - **Twin Signal Level Monitor (`VuMeterPanel`)**: Dual McIntosh cyan blue VU meters rendered on the GPU scene graph with peak warning LEDs.
 - **10-Band Frequency Processor (`EqualizerPanel`)**: 16-band real-time spectrum analyzer, EQ preset selector, `POWER: ON / BYPASS` toggle, gain slider, and 10 EQ frequency band sliders.
 - **Input & Active Track Deck (`ProgramMonitorPanel`)**: VFD screen displaying album art, track details, source codec/layout, decoded PCM output, selectable container audio tracks, timing information, and a segmented seek bar.
@@ -72,6 +72,19 @@ Magnetofon handles media natively through `libmpv` and FFmpeg:
 
 Compressed surround tracks are decoded to PCM in memory. Magnetofon does not create temporary converted files and does not enable S/PDIF/HDMI compressed bitstream passthrough. TrueHD and DTS-HD MA therefore retain their lossless channel data; AC-3 and standard DTS are reproduced faithfully without another lossy encoding stage.
 
+### Speakers & subwoofer
+
+- **Auto** preserves the source layout and bypasses speaker tuning.
+- **2.1** enhances mono/stereo with front speakers and a generated subwoofer signal. It uses a 5.1 carrier with only FL, FR and LFE active for compatibility with surround devices. Native multichannel tracks remain untouched in this mode.
+- **Surround** bass-manages native 5.1 without downmixing, or upmixes mono/stereo to 5.1. Both rear (`5.1`) and side (`5.1(side)`) surround layouts retain their channel mapping. Other native layouts, including 7.1, pass through unchanged.
+- **SPEAKER TUNING** has independent **2.1 Stereo** and **5.1 Surround** profiles. It opens on the current enhancement mode; selecting a settings tab does not change playback mode.
+  - **2.1:** shared front-speaker high-pass, subwoofer low-pass, and subwoofer level. Existing stereo settings are retained. Defaults: 80 Hz / 80 Hz / 0 dB.
+  - **5.1:** individual high-pass cutoffs for front left, front right, center, surround left, and surround right. Removed bass is summed into the original LFE, with a separate subwoofer low-pass and level. Defaults: 80 Hz for each speaker, 120 Hz subwoofer low-pass, 0 dB level.
+  - Speaker cutoffs: 0/full-range–200 Hz; subwoofer low-pass: 40–200 Hz; subwoofer level: −12 to +6 dB. Filters are 12 dB/octave. Each profile saves and resets independently.
+- Select an output-device profile exposing a physical LFE channel to hear the subwoofer signal.
+- Every launch starts with the volume knob at 50%, showing −30 dB on the console's existing display scale.
+- In windowed visuals, drag the top strip to move the window, or any edge/corner to resize it, including in borderless mode.
+
 ### Music Video
 
 - **Containers**: MKV, MKA, MP4, M4V, MOV, WebM, M2TS, MTS, TS, VOB, and AVI
@@ -91,9 +104,19 @@ The **PROGRAM MEMORY** panel provides four library controls:
 - **LOAD**: Replace the current queue with a saved `.m3u` or `.m3u8` playlist.
 - **SAVE**: Save the current queue as a UTF-8 `.m3u8` playlist. Media paths are stored relative to the playlist file where possible, making playlists portable with their library folder.
 
+Opening media from the file manager reuses the running player and appends to its queue without interrupting the active track. Drag a queue row to reorder it, or use its ↑/↓ buttons; the playing track remains selected.
+
 Files are naturally ordered by folder and filename, so names such as `Album 2` precede `Album 10` and track `02` precedes track `10`. Existing queue entries are not duplicated. You can also drag individual files or an entire folder directly onto the playlist panel.
 
 Missing and unsupported entries in loaded playlists are skipped without adding broken queue items.
+
+### Continuous albums / gapless playback
+
+The **GAPLESS** button in **TAPE PLAYBACK ENGINE** enables continuous album playback. It lights cyan when enabled and remembers its state between launches (off by default).
+
+Magnetofon queues the remaining tracks inside the audio engine before playback starts, prefetches upcoming media, and keeps compatible audio output/DSP settings intact across track boundaries. There is no crossfade, overlap, or automatic silence trimming. Embedded silence remains part of the recording; uninterrupted output works best when adjacent tracks share their sample rate and channel layout.
+
+Queue edits, manual track selection, pause, and stop remain available. In gapless mode the album stops at the end of the queue rather than restarting it. Turning the button off restores normal track-by-track playback.
 
 ### Visual Preset Library
 

@@ -93,6 +93,7 @@ public slots:
 
     QVariantMap getTrack(int index) const;
     QString currentFilePath() const;
+    void followPlayback(const QString &filePath);
     void nextTrack();
     void previousTrack();
 

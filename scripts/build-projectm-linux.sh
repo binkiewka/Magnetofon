@@ -57,6 +57,7 @@ apply_patch_once() {
 
 apply_patch_once "$VENDOR/projectm" "$ROOT/resources/projectm/patches/projectm-core.patch"
 apply_patch_once "$VENDOR/frontend-sdl-cpp" "$ROOT/resources/projectm/patches/frontend-sdl-cpp.patch"
+apply_patch_once "$VENDOR/frontend-sdl-cpp" "$ROOT/resources/projectm/patches/window-drag.patch"
 
 POCO_BUILD="$VENDOR/poco-build-magnetofon"
 cmake -S "$VENDOR/poco" -B "$POCO_BUILD" \

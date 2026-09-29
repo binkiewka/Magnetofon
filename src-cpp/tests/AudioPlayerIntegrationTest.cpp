@@ -11,6 +11,7 @@
 #include <QDir>
 #include <QFile>
 #include <QSignalSpy>
+#include <QSettings>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QUrl>
@@ -95,6 +96,213 @@ private slots:
     void initTestCase()
     {
         std::setlocale(LC_NUMERIC, "C");
+        QSettings::setDefaultFormat(QSettings::IniFormat);
+        QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, m_tempDir.path());
+    }
+
+    void gaplessAlbumProducesCompletePcmWithoutReloads()
+    {
+        const QString output = m_tempDir.filePath("gapless-output.wav");
+        qputenv("MAGNETOFON_TEST_PCM_FILE", QFile::encodeName(output));
+        {
+            PlaylistModel playlist;
+            AudioPlayer player;
+            qunsetenv("MAGNETOFON_TEST_PCM_FILE");
+            player.setPlaylist(&playlist);
+            player.setGaplessEnabled(true);
+            player.setVolume(1);
+            QSignalSpy selections(&playlist, &PlaylistModel::trackSelected);
+            QSignalSpy finished(&player, &AudioPlayer::trackEnded);
+            playlist.addFiles({QUrl::fromLocalFile(createTone("gapless-1.wav", 100, 200, 0.8)),
+                               QUrl::fromLocalFile(createTone("gapless-2.wav", 100, 200, 0.8)),
+                               QUrl::fromLocalFile(createTone("gapless-3.wav", 100, 200, 0.8))});
+            QTRY_COMPARE_WITH_TIMEOUT(playlist.currentIndex(), 2, 5000);
+            QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 5000);
+            QVERIFY(!player.isPlaying());
+            QCOMPARE(selections.count(), 1); // The following tracks never take the manual load path.
+            player.setGaplessEnabled(false);
+        } // Close output and finalize WAV header.
+        QFile file(output);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        const QByteArray bytes = file.readAll();
+        QVERIFY(bytes.startsWith("RIFF"));
+        quint16 blockAlign = 0;
+        quint32 dataSize = 0;
+        for (int offset = 12; offset + 8 <= bytes.size();) {
+            QDataStream sizeStream(bytes.mid(offset + 4, 4));
+            sizeStream.setByteOrder(QDataStream::LittleEndian);
+            quint32 size; sizeStream >> size;
+            if (bytes.mid(offset, 4) == "fmt ") {
+                QDataStream formatStream(bytes.mid(offset + 8 + 12, 2));
+                formatStream.setByteOrder(QDataStream::LittleEndian);
+                formatStream >> blockAlign;
+            }
+            if (bytes.mid(offset, 4) == "data") { dataSize = size; break; }
+            offset += 8 + size + (size % 2);
+        }
+        QVERIFY(blockAlign > 0);
+        QCOMPARE(dataSize / blockAlign, quint32(3 * 38400)); // No added or dropped samples.
+    }
+
+    void gaplessQueueTracksEditsAndToggle()
+    {
+        PlaylistModel playlist;
+        AudioPlayer player;
+        player.setPlaylist(&playlist);
+        player.setVolume(0);
+        player.setGaplessEnabled(true);
+        const QString first = createTone("gap-edit1.wav", 100, 200, 0.8);
+        const QString second = createTone("gap-edit2.wav", 200, 300, 2);
+        const QString third = createTone("gap-edit3.wav", 300, 400, 2);
+        playlist.addFiles({QUrl::fromLocalFile(first), QUrl::fromLocalFile(second), QUrl::fromLocalFile(third)});
+        QTRY_VERIFY_WITH_TIMEOUT(player.isPlaying(), 2000);
+        playlist.moveTrack(2, 1);
+        QTRY_COMPARE_WITH_TIMEOUT(player.currentFile(), third, 3000);
+        QCOMPARE(playlist.currentIndex(), 1);
+        player.pause();
+        QTRY_VERIFY(!player.isPlaying());
+        player.setGaplessEnabled(false);
+        QVERIFY(!player.gaplessEnabled());
+        player.setGaplessEnabled(true);
+        playlist.removeTrack(2);
+        player.play();
+        QTRY_VERIFY_WITH_TIMEOUT(!player.hasLoadedMedia(), 4000);
+        QCOMPARE(player.currentFile(), third);
+        player.setGaplessEnabled(false);
+        playlist.clear();
+        QVERIFY(!player.isPlaying());
+    }
+
+    void manualSelectionStillStartsPlayback()
+    {
+        for (bool gapless : {false, true}) {
+            PlaylistModel playlist;
+            AudioPlayer player;
+            player.setPlaylist(&playlist);
+            player.setVolume(0);
+            player.setGaplessEnabled(gapless);
+            const QString first = createTone("manual-1.wav", 100, 200, 2);
+            const QString second = createTone("manual-2.wav", 200, 300, 2);
+            playlist.addFiles({QUrl::fromLocalFile(first), QUrl::fromLocalFile(second)});
+            QTRY_VERIFY_WITH_TIMEOUT(player.isPlaying(), 2000);
+            playlist.setCurrentIndex(1);
+            QTRY_COMPARE_WITH_TIMEOUT(player.currentFile(), second, 2000);
+            QTRY_VERIFY_WITH_TIMEOUT(player.isPlaying(), 2000);
+            QTRY_VERIFY_WITH_TIMEOUT(player.position() > 0.05, 2000);
+            player.stop();
+            player.setGaplessEnabled(false);
+        }
+    }
+
+    void gaplessStopAndSavedPreference()
+    {
+        PlaylistModel playlist;
+        AudioPlayer player;
+        player.setPlaylist(&playlist);
+        player.setVolume(0);
+        player.setGaplessEnabled(true);
+        { AudioPlayer restored; QVERIFY(restored.gaplessEnabled()); }
+        const QString first = createTone("gap-stop1.wav", 100, 200, 2);
+        playlist.addFiles({QUrl::fromLocalFile(first),
+                           QUrl::fromLocalFile(createTone("gap-stop2.wav", 200, 300, 2))});
+        QTRY_VERIFY_WITH_TIMEOUT(player.isPlaying(), 2000);
+        player.stop();
+        QTest::qWait(150);
+        QVERIFY(!player.isPlaying());
+        QVERIFY(!player.hasLoadedMedia());
+        QCOMPARE(playlist.currentIndex(), 0);
+        player.play();
+        QTRY_VERIFY_WITH_TIMEOUT(player.isPlaying(), 2000);
+        QCOMPARE(player.currentFile(), first);
+        playlist.clear();
+        QTest::qWait(100);
+        QVERIFY(!player.hasLoadedMedia());
+        player.setGaplessEnabled(false);
+    }
+
+    void speakerProfilesAreIndependentAndPersisted()
+    {
+        AudioPlayer player;
+        player.setSpeakerCutoff(65);
+        player.setSubwooferCutoff(90);
+        player.setSubwooferGain(-2);
+        for (int i = 0; i < 5; ++i) player.setSurroundCutoff(i, 50 + i * 20);
+        player.setSurroundSubwooferCutoff(130);
+        player.setSurroundSubwooferGain(1.5);
+        player.setSurroundCutoff(-1, 180);
+        player.setSurroundCutoff(5, 180);
+        AudioPlayer restored;
+        QCOMPARE(restored.speakerCutoff(), 65);
+        QCOMPARE(restored.subwooferCutoff(), 90);
+        QCOMPARE(restored.subwooferGain(), -2.0);
+        QCOMPARE(restored.surroundCutoffs(), QVariantList({50, 70, 90, 110, 130}));
+        QCOMPARE(restored.surroundSubwooferCutoff(), 130);
+        QCOMPARE(restored.surroundSubwooferGain(), 1.5);
+        restored.resetSpeakerProfile(true);
+        QCOMPARE(restored.speakerCutoff(), 65);
+        QCOMPARE(restored.subwooferCutoff(), 90);
+        QCOMPARE(restored.surroundCutoffs(), QVariantList({80, 80, 80, 80, 80}));
+        QCOMPARE(restored.surroundSubwooferCutoff(), 120);
+        restored.setSurroundCutoff(0, 95);
+        restored.resetSpeakerProfile(false);
+        QCOMPARE(restored.surroundCutoffs()[0].toInt(), 95);
+        QCOMPARE(restored.speakerCutoff(), 80);
+        restored.resetSpeakerProfile(true);
+    }
+
+    void surroundToStereoTrackTransition()
+    {
+        AudioPlayer player;
+        player.setVolume(0);
+        player.setSurroundMode("SURROUND");
+        player.load(createSurroundTone("transition51.wav", 2));
+        player.play();
+        QTRY_VERIFY_WITH_TIMEOUT(player.hasLoadedMedia(), 3000);
+        QTRY_VERIFY_WITH_TIMEOUT(player.position() > 0.1, 3000);
+        QCOMPARE(player.sourceChannels(), 6);
+        player.load(createTone("transition2.wav", 100, 300, 2));
+        player.play();
+        QTRY_VERIFY_WITH_TIMEOUT(player.hasLoadedMedia(), 3000);
+        QTRY_VERIFY_WITH_TIMEOUT(player.position() > 0.1, 3000);
+        QCOMPARE(player.sourceChannels(), 2);
+        player.stop();
+    }
+
+    void reorderPreservesActiveTrack()
+    {
+        PlaylistModel playlist;
+        for (int i = 0; i < 4; ++i) playlist.addFile(createTone(QString("move%1.wav").arg(i), 100, 200, 0.1));
+        playlist.setCurrentIndex(1);
+        const QString current = playlist.currentFilePath();
+        QSignalSpy selected(&playlist, &PlaylistModel::trackSelected);
+        playlist.moveTrack(0, 3);
+        QCOMPARE(playlist.currentIndex(), 0);
+        QCOMPARE(playlist.currentFilePath(), current);
+        playlist.moveTrack(3, 0);
+        QCOMPARE(playlist.currentIndex(), 1);
+        QCOMPARE(playlist.currentFilePath(), current);
+        playlist.moveTrack(1, 3);
+        QCOMPARE(playlist.currentIndex(), 3);
+        QCOMPARE(playlist.currentFilePath(), current);
+        QCOMPARE(selected.count(), 0);
+    }
+
+    void stereoBassModePlays()
+    {
+        AudioPlayer player;
+        QCOMPARE(player.volume(), 0.5);
+        player.setVolume(0.0);
+        player.setSurroundMode("2.1");
+        player.load(createTone("bass-mode.wav", 60, 1000));
+        player.play();
+        QTRY_VERIFY_WITH_TIMEOUT(player.hasLoadedMedia(), 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(player.position() > 0.1, 5000);
+        QCOMPARE(player.sourceChannels(), 2);
+        player.setSurroundMode("SURROUND");
+        QTRY_VERIFY_WITH_TIMEOUT(player.position() > 0.3, 5000);
+        player.setSurroundMode("AUTO");
+        QTRY_VERIFY_WITH_TIMEOUT(player.position() > 0.5, 5000);
+        player.stop();
     }
 
     void idleStateIsActuallyIdle()

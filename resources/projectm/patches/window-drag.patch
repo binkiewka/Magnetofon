@@ -1,0 +1,31 @@
+--- a/src/SDLRenderingWindow.cpp
++++ b/src/SDLRenderingWindow.cpp
+@@ -258,6 +258,28 @@
+         throw Poco::Exception(errorMessage);
+     }
+ 
++    // Borderless windows need explicit resize hit zones. Edges take priority
++    // over the draggable top strip; fullscreen must never move or resize.
++    SDL_SetWindowHitTest(_renderingWindow, [](SDL_Window* window, const SDL_Point* point, void*) {
++        if (SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN) return SDL_HITTEST_NORMAL;
++        int width = 0, height = 0;
++        SDL_GetWindowSize(window, &width, &height);
++        constexpr int edge = 8;
++        const bool left = point->x < edge;
++        const bool right = point->x >= width - edge;
++        const bool top = point->y < edge;
++        const bool bottom = point->y >= height - edge;
++        if (top && left) return SDL_HITTEST_RESIZE_TOPLEFT;
++        if (top && right) return SDL_HITTEST_RESIZE_TOPRIGHT;
++        if (bottom && left) return SDL_HITTEST_RESIZE_BOTTOMLEFT;
++        if (bottom && right) return SDL_HITTEST_RESIZE_BOTTOMRIGHT;
++        if (left) return SDL_HITTEST_RESIZE_LEFT;
++        if (right) return SDL_HITTEST_RESIZE_RIGHT;
++        if (top) return SDL_HITTEST_RESIZE_TOP;
++        if (bottom) return SDL_HITTEST_RESIZE_BOTTOM;
++        return point->y < 32 ? SDL_HITTEST_DRAGGABLE : SDL_HITTEST_NORMAL;
++    }, nullptr);
++
+     _glContext = SDL_GL_CreateContext(_renderingWindow);
+     if (!_glContext)
+     {

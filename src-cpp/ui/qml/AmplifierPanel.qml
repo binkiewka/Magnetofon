@@ -7,10 +7,11 @@ HifiPanel {
     implicitHeight: 176
     title: "POWER STAGE"
 
-    property double volume: 0.8
+    property double volume: 0.5
     property string surroundMode: "AUTO"
     signal volumeChangedByUser(double val)
     signal modeSelected(string mode)
+    signal speakerSettingsRequested()
 
     Theme { id: theme }
 
@@ -86,7 +87,7 @@ HifiPanel {
                         spacing: 5
 
                             Repeater {
-                                model: ["AUTO", "STEREO", "SURROUND"]
+                                model: ["AUTO", "2.1", "SURROUND"]
                                 HifiButton {
                                     text: modelData
                                     Layout.fillWidth: true
@@ -115,6 +116,12 @@ HifiPanel {
                         }
                     }
 
+                    HifiButton {
+                        text: "SPEAKER TUNING"
+                        isCompact: true
+                        Layout.alignment: Qt.AlignHCenter
+                        onClicked: root.speakerSettingsRequested()
+                    }
                     Item { Layout.fillHeight: true }
                 }
             }

@@ -2,6 +2,7 @@
 #define AUDIO_PLAYER_HPP
 
 #include <QObject>
+#include <QPointer>
 #include <QString>
 #include <QVariantList>
 #include <QTimer>
@@ -10,15 +11,23 @@
 #include <vector>
 #include <mpv/client.h>
 
+class PlaylistModel;
 class PulseAudioAnalyzer;
 class VideoWindow;
 
 class AudioPlayer : public QObject {
     Q_OBJECT
 
+    Q_PROPERTY(bool gaplessEnabled READ gaplessEnabled WRITE setGaplessEnabled NOTIFY gaplessEnabledChanged)
     Q_PROPERTY(QString currentFile READ currentFile NOTIFY currentFileChanged)
     Q_PROPERTY(double position READ position NOTIFY positionChanged)
     Q_PROPERTY(double duration READ duration NOTIFY durationChanged)
+    Q_PROPERTY(QVariantList surroundCutoffs READ surroundCutoffs NOTIFY speakerSettingsChanged)
+    Q_PROPERTY(int surroundSubwooferCutoff READ surroundSubwooferCutoff WRITE setSurroundSubwooferCutoff NOTIFY speakerSettingsChanged)
+    Q_PROPERTY(double surroundSubwooferGain READ surroundSubwooferGain WRITE setSurroundSubwooferGain NOTIFY speakerSettingsChanged)
+    Q_PROPERTY(int speakerCutoff READ speakerCutoff WRITE setSpeakerCutoff NOTIFY speakerSettingsChanged)
+    Q_PROPERTY(int subwooferCutoff READ subwooferCutoff WRITE setSubwooferCutoff NOTIFY speakerSettingsChanged)
+    Q_PROPERTY(double subwooferGain READ subwooferGain WRITE setSubwooferGain NOTIFY speakerSettingsChanged)
     Q_PROPERTY(double volume READ volume WRITE setVolume NOTIFY volumeChanged)
     Q_PROPERTY(bool isPlaying READ isPlaying NOTIFY isPlayingChanged)
     Q_PROPERTY(bool hasLoadedMedia READ hasLoadedMedia NOTIFY hasLoadedMediaChanged)
@@ -48,9 +57,17 @@ public:
     explicit AudioPlayer(QObject *parent = nullptr);
     ~AudioPlayer();
 
+    void setPlaylist(PlaylistModel *playlist);
+    bool gaplessEnabled() const { return m_gaplessEnabled; }
     QString currentFile() const { return m_currentFile; }
     double position() const { return m_position; }
     double duration() const { return m_duration; }
+    QVariantList surroundCutoffs() const;
+    int surroundSubwooferCutoff() const { return m_surroundSubwooferCutoff; }
+    double surroundSubwooferGain() const { return m_surroundSubwooferGain; }
+    int speakerCutoff() const { return m_speakerCutoff; }
+    int subwooferCutoff() const { return m_subwooferCutoff; }
+    double subwooferGain() const { return m_subwooferGain; }
     double volume() const { return m_volume; }
     bool isPlaying() const { return m_isPlaying; }
     bool hasLoadedMedia() const { return m_fileLoaded; }
@@ -78,12 +95,20 @@ public:
     QVariantList spectrum() const { return m_spectrum; }
 
 public slots:
+    void setGaplessEnabled(bool enabled);
     void load(const QString &filePath);
     void play();
     void pause();
     void togglePlayPause();
     void stop();
     void seek(double seconds);
+    void setSurroundCutoff(int speaker, int hz);
+    void setSurroundSubwooferCutoff(int hz);
+    void setSurroundSubwooferGain(double db);
+    void resetSpeakerProfile(bool surround);
+    void setSpeakerCutoff(int hz);
+    void setSubwooferCutoff(int hz);
+    void setSubwooferGain(double db);
     void setVolume(double volume);
     void setSurroundMode(const QString &mode);
     void setEqEnabled(bool enabled);
@@ -95,9 +120,11 @@ public slots:
     void toggleVideo();
 
 signals:
+    void gaplessEnabledChanged();
     void currentFileChanged();
     void positionChanged();
     void durationChanged();
+    void speakerSettingsChanged();
     void volumeChanged();
     void isPlayingChanged();
     void hasLoadedMediaChanged();
@@ -119,6 +146,8 @@ private slots:
     void updateAudioAnalysis();
 
 private:
+    void syncNextTrack();
+    void rememberNativeQueue();
     void applyAudioFilters();
     void initMpv();
     void queueLoadCurrentFile();
@@ -137,10 +166,25 @@ private:
     std::unique_ptr<PulseAudioAnalyzer> m_audioAnalyzer;
     std::unique_ptr<VideoWindow> m_videoWindow;
 
+    QPointer<PlaylistModel> m_playlist;
+    QTimer m_queueSyncTimer;
+    bool m_gaplessEnabled = false;
+    QStringList m_queuedFiles;
+    QHash<qint64, QString> m_nativeFiles;
+    QString m_startedFile;
+    QString m_appliedFilter;
+    QByteArray m_appliedChannels;
     QString m_currentFile;
     double m_position = 0.0;
     double m_duration = 0.0;
-    double m_volume = 0.8;
+    std::array<int, 5> m_surroundCutoffs{{80, 80, 80, 80, 80}};
+    int m_surroundSubwooferCutoff = 120;
+    double m_surroundSubwooferGain = 0.0;
+    QString m_sourceChannelLayout;
+    int m_speakerCutoff = 80;
+    int m_subwooferCutoff = 80;
+    double m_subwooferGain = 0.0;
+    double m_volume = 0.5;
     bool m_isPlaying = false;
     bool m_fileLoaded = false;
     bool m_loadPending = false;

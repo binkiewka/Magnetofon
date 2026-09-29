@@ -212,6 +212,7 @@ ApplicationWindow {
                         spacing: 12
 
                         AmplifierPanel {
+                            onSpeakerSettingsRequested: speakersDialog.visible = true
                             Layout.fillWidth: true
                             Layout.preferredHeight: playlistPanel.isExpanded ? 0 : 176
                             visible: !playlistPanel.isExpanded
@@ -294,6 +295,8 @@ ApplicationWindow {
                         }
 
                         CassettePanel {
+                            gaplessEnabled: audioPlayer.gaplessEnabled
+                            onGaplessToggled: function(enabled) { audioPlayer.gaplessEnabled = enabled }
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             Layout.minimumHeight: 190
@@ -375,6 +378,11 @@ ApplicationWindow {
             onPressed: window.startSystemResize(Qt.BottomEdge)
         }
 
+        SpeakerControlPanel {
+            id: speakersDialog
+            visible: false
+            onCloseRequested: visible = false
+        }
         VisualsControlPanel {
             id: visualsModal
             visible: false

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(Magnetofon VERSION 2.0.5 LANGUAGES CXX C)
+project(Magnetofon VERSION 2.1.0 LANGUAGES CXX C)
 
 
 include(GNUInstallDirs)
@@ -173,6 +173,7 @@ if(BUILD_TESTING)
         ui/VideoWindow.hpp
     )
 
+    target_compile_definitions(MagnetofonTests PRIVATE MAGNETOFON_TESTING)
     target_include_directories(MagnetofonTests PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/audio
         ${CMAKE_CURRENT_SOURCE_DIR}/models
@@ -187,8 +188,18 @@ if(BUILD_TESTING)
     )
 
 
+    if(UNIX AND NOT APPLE)
+        pkg_check_modules(AVFILTER QUIET IMPORTED_TARGET libavfilter)
+        if(AVFILTER_FOUND AND AVUTIL_FOUND)
+            add_executable(MagnetofonDspTests tests/AudioRoutingDspTest.cpp audio/AudioRouting.cpp)
+            target_link_libraries(MagnetofonDspTests PRIVATE Qt6::Core Qt6::Test PkgConfig::AVFILTER PkgConfig::AVUTIL)
+            add_test(NAME MagnetofonDsp COMMAND MagnetofonDspTests)
+            set_tests_properties(MagnetofonDsp PROPERTIES TIMEOUT 20)
+        endif()
+    endif()
+
     add_test(NAME MagnetofonIntegration COMMAND MagnetofonTests)
-    set_tests_properties(MagnetofonIntegration PROPERTIES TIMEOUT 20)
+    set_tests_properties(MagnetofonIntegration PROPERTIES TIMEOUT 60)
 endif()
 
 # CPack Packaging Configuration

@@ -170,7 +170,27 @@ HifiPanel {
 
                     MouseArea {
                         anchors.fill: parent
-                        onClicked: playlistModel.currentIndex = index
+                        property real pressY: 0
+                        property bool reordering: false
+                        preventStealing: true
+                        cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                        onPressed: function(mouse) { pressY = mouse.y; reordering = false }
+                        onPositionChanged: function(mouse) {
+                            if (pressed && Math.abs(mouse.y - pressY) > 8) reordering = true
+                            if (pressed && reordering) {
+                                var p = mapToItem(listView, mouse.x, mouse.y)
+                                if (p.y < 20) listView.contentY = Math.max(0, listView.contentY - 12)
+                                if (p.y > listView.height - 20)
+                                    listView.contentY = Math.min(Math.max(0, listView.contentHeight - listView.height), listView.contentY + 12)
+                            }
+                        }
+                        onReleased: function(mouse) {
+                            if (reordering) {
+                                var p = mapToItem(listView.contentItem, mouse.x, mouse.y)
+                                var target = Math.max(0, Math.min(playlistModel.count - 1, Math.floor(p.y / 42)))
+                                playlistModel.moveTrack(index, target)
+                            } else playlistModel.currentIndex = index
+                        }
                     }
 
                     RowLayout {
@@ -215,6 +235,22 @@ HifiPanel {
                             }
                         }
 
+                        Button {
+                            text: "↑"
+                            implicitWidth: 25; implicitHeight: 25
+                            enabled: index > 0
+                            onClicked: playlistModel.moveTrack(index, index - 1)
+                            ToolTip.visible: hovered
+                            ToolTip.text: "Move track up"
+                        }
+                        Button {
+                            text: "↓"
+                            implicitWidth: 25; implicitHeight: 25
+                            enabled: index < playlistModel.count - 1
+                            onClicked: playlistModel.moveTrack(index, index + 1)
+                            ToolTip.visible: hovered
+                            ToolTip.text: "Move track down"
+                        }
                         Button {
                             implicitWidth: 25
                             implicitHeight: 25

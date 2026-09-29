@@ -355,10 +355,11 @@ void PlaylistModel::moveTrack(int from, int to)
     m_tracks.move(from, to);
     endMoveRows();
 
-    if (m_currentIndex == from) {
-        m_currentIndex = to;
-        emit currentIndexChanged();
-    }
+    const int previousIndex = m_currentIndex;
+    if (m_currentIndex == from) m_currentIndex = to;
+    else if (from < m_currentIndex && to >= m_currentIndex) --m_currentIndex;
+    else if (from > m_currentIndex && to <= m_currentIndex) ++m_currentIndex;
+    if (m_currentIndex != previousIndex) emit currentIndexChanged();
 }
 
 QVariantMap PlaylistModel::getTrack(int index) const
@@ -400,6 +401,19 @@ QString PlaylistModel::currentFilePath() const
         return m_tracks[m_currentIndex].filePath;
     }
     return QString();
+}
+
+void PlaylistModel::followPlayback(const QString &filePath)
+{
+    for (int i = 0; i < m_tracks.size(); ++i) {
+        if (m_tracks[i].filePath == filePath) {
+            if (m_currentIndex != i) {
+                m_currentIndex = i;
+                emit currentIndexChanged();
+            }
+            return; // Engine has already started this track; do not reload it.
+        }
+    }
 }
 
 void PlaylistModel::nextTrack()

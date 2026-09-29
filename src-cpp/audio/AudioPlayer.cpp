@@ -1,5 +1,7 @@
 #include "AudioPlayer.hpp"
+#include <QSettings>
 #include "AudioRouting.hpp"
+#include "PlaylistModel.hpp"
 #include "PulseAudioAnalyzer.hpp"
 #include "VideoWindow.hpp"
 
@@ -80,6 +82,17 @@ AudioPlayer::AudioPlayer(QObject *parent)
     : QObject(parent)
     , m_videoWindow(std::make_unique<VideoWindow>())
 {
+    QSettings settings;
+    m_gaplessEnabled = settings.value("playback/gapless", false).toBool();
+    m_queueSyncTimer.setSingleShot(true);
+    connect(&m_queueSyncTimer, &QTimer::timeout, this, &AudioPlayer::syncNextTrack);
+    m_speakerCutoff = std::clamp(settings.value("speakers/highpass", 80).toInt(), 0, 200);
+    m_subwooferCutoff = std::clamp(settings.value("speakers/lowpass", 80).toInt(), 40, 200);
+    m_subwooferGain = std::clamp(settings.value("speakers/subGain", 0).toDouble(), -12.0, 6.0);
+    for (int i = 0; i < 5; ++i)
+        m_surroundCutoffs[i] = std::clamp(settings.value(QString("speakers/surround/cutoff%1").arg(i), 80).toInt(), 0, 200);
+    m_surroundSubwooferCutoff = std::clamp(settings.value("speakers/surround/lowpass", 120).toInt(), 40, 200);
+    m_surroundSubwooferGain = std::clamp(settings.value("speakers/surround/subGain", 0).toDouble(), -12.0, 6.0);
     m_eqBands = QVariantList{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     for (int i = 0; i < 16; ++i) m_spectrum.append(0.0);
 
@@ -91,6 +104,7 @@ AudioPlayer::AudioPlayer(QObject *parent)
             });
 
     initMpv();
+    setVolume(m_volume);
     m_audioAnalyzer = std::make_unique<PulseAudioAnalyzer>();
 
     m_eventTimer = new QTimer(this);
@@ -143,7 +157,17 @@ void AudioPlayer::initMpv()
     mpv_set_option_string(m_mpv, "audio-channels", "auto-safe");
     mpv_set_option_string(m_mpv, "audio-spdif", "");
     mpv_set_option_string(m_mpv, "ad-lavc-downmix", "no");
-    mpv_set_option_string(m_mpv, "gapless-audio", "no");
+    mpv_set_option_string(m_mpv, "gapless-audio", m_gaplessEnabled ? "yes" : "no");
+    mpv_set_option_string(m_mpv, "prefetch-playlist", "yes");
+#ifdef MAGNETOFON_TESTING
+    const QByteArray testOutput = qgetenv("MAGNETOFON_TEST_PCM_FILE");
+    if (!testOutput.isEmpty()) {
+        mpv_set_option_string(m_mpv, "ao", "pcm");
+        mpv_set_option_string(m_mpv, "ao-pcm-file", testOutput.constData());
+        mpv_set_option_string(m_mpv, "ao-pcm-waveheader", "yes");
+        mpv_set_option_string(m_mpv, "ao-pcm-fast", "no");
+    }
+#endif
 
     const int status = mpv_initialize(m_mpv);
     if (status < 0) {
@@ -153,12 +177,14 @@ void AudioPlayer::initMpv()
         return;
     }
 
+    mpv_request_log_messages(m_mpv, "warn");
     mpv_observe_property(m_mpv, 0, "time-pos", MPV_FORMAT_DOUBLE);
     mpv_observe_property(m_mpv, 0, "duration", MPV_FORMAT_DOUBLE);
     mpv_observe_property(m_mpv, 0, "pause", MPV_FORMAT_FLAG);
     mpv_observe_property(m_mpv, 0, "volume", MPV_FORMAT_DOUBLE);
     mpv_observe_property(m_mpv, 0, "aid", MPV_FORMAT_INT64);
     mpv_observe_property(m_mpv, 0, "audio-params/channel-count", MPV_FORMAT_INT64);
+    mpv_observe_property(m_mpv, 0, "audio-params/channels", MPV_FORMAT_STRING);
     mpv_observe_property(m_mpv, 0, "audio-out-params/channel-count", MPV_FORMAT_INT64);
     mpv_observe_property(m_mpv, 0, "audio-out-params/samplerate", MPV_FORMAT_INT64);
     mpv_observe_property(m_mpv, 0, "audio-out-params/hr-channels", MPV_FORMAT_STRING);
@@ -181,6 +207,85 @@ void AudioPlayer::setPlaying(bool playing)
     emit isPlayingChanged();
 }
 
+void AudioPlayer::setPlaylist(PlaylistModel *playlist)
+{
+    if (m_playlist == playlist) return;
+    if (m_playlist) {
+        disconnect(m_playlist, nullptr, this, nullptr);
+        disconnect(this, nullptr, m_playlist, nullptr);
+    }
+    m_playlist = playlist;
+    if (!playlist) return;
+    connect(playlist, &PlaylistModel::trackSelected, this, [this](const QString &path) {
+        if (!m_playlist || m_playlist->currentFilePath() != path) return;
+        load(path);
+        play();
+    }, Qt::QueuedConnection); // Let a multi-file addition finish before prequeuing its tracks.
+    connect(playlist, &PlaylistModel::emptied, this, &AudioPlayer::stop);
+    connect(this, &AudioPlayer::trackEnded, playlist, [this, playlist]() {
+        if (!m_gaplessEnabled) playlist->nextTrack();
+    });
+    const auto resync = [this]() { m_queueSyncTimer.start(0); };
+    connect(playlist, &PlaylistModel::currentIndexChanged, this, resync);
+    connect(playlist, &PlaylistModel::countChanged, this, resync);
+    connect(playlist, &QAbstractItemModel::rowsMoved, this, resync);
+    resync();
+}
+
+void AudioPlayer::setGaplessEnabled(bool enabled)
+{
+    if (m_gaplessEnabled == enabled) return;
+    if (m_mpv && mpv_set_property_string(m_mpv, "gapless-audio", enabled ? "yes" : "no") < 0) {
+        qWarning() << "[AudioPlayer] Could not change gapless playback";
+        return;
+    }
+    m_gaplessEnabled = enabled;
+    QSettings().setValue("playback/gapless", enabled);
+    emit gaplessEnabledChanged();
+    syncNextTrack();
+}
+
+void AudioPlayer::syncNextTrack()
+{
+    if (!m_mpv || !m_fileLoaded || m_loadPending) return;
+    char *activePath = mpv_get_property_string(m_mpv, "path");
+    const QString activeFile = activePath ? QString::fromUtf8(activePath) : QString();
+    mpv_free(activePath);
+    // A native handoff may already have happened; let its events catch the UI up
+    // before applying an edit against the wrong playing entry.
+    if (activeFile != m_currentFile) return;
+    QStringList next;
+    if (m_gaplessEnabled && m_playlist && m_playlist->currentFilePath() == m_currentFile) {
+        for (int index = m_playlist->currentIndex() + 1; index < m_playlist->count(); ++index)
+            next.append(m_playlist->getTrack(index).value("filePath").toString());
+    }
+    if (next == m_queuedFiles) return;
+    const char *clear[] = {"playlist-clear", nullptr}; // Keeps the playing entry.
+    if (mpv_command(m_mpv, clear) < 0) return;
+    m_queuedFiles.clear();
+    for (const QString &file : next) {
+        const QByteArray path = QFile::encodeName(file);
+        const char *append[] = {"loadfile", path.constData(), "append", nullptr};
+        if (mpv_command(m_mpv, append) >= 0) m_queuedFiles.append(file);
+    }
+    rememberNativeQueue();
+}
+
+void AudioPlayer::rememberNativeQueue()
+{
+    mpv_node entries{};
+    if (mpv_get_property(m_mpv, "playlist", MPV_FORMAT_NODE, &entries) < 0) return;
+    if (entries.format == MPV_FORMAT_NODE_ARRAY) {
+        for (int i = 0; i < entries.u.list->num; ++i) {
+            const mpv_node &entry = entries.u.list->values[i];
+            const auto *id = mapValue(entry, "id");
+            if (id && id->format == MPV_FORMAT_INT64)
+                m_nativeFiles.insert(id->u.int64, nodeString(entry, "filename"));
+        }
+    }
+    mpv_free_node_contents(&entries);
+}
+
 void AudioPlayer::queueLoadCurrentFile()
 {
     if (!m_mpv || m_currentFile.isEmpty() || m_loadPending) return;
@@ -192,6 +297,7 @@ void AudioPlayer::queueLoadCurrentFile()
         return;
     }
     m_loadPending = true;
+    m_queuedFiles.clear();
 }
 
 void AudioPlayer::processMpvEvents()
@@ -203,11 +309,34 @@ void AudioPlayer::processMpvEvents()
         if (event->event_id == MPV_EVENT_NONE) break;
 
         switch (event->event_id) {
-        case MPV_EVENT_START_FILE:
-            setFileLoaded(false);
+        case MPV_EVENT_LOG_MESSAGE: {
+            const auto *message = static_cast<mpv_event_log_message *>(event->data);
+            qWarning().noquote() << "[mpv]" << message->prefix << message->text;
             break;
+        }
+        case MPV_EVENT_START_FILE: {
+            const auto *start = static_cast<mpv_event_start_file *>(event->data);
+            m_startedFile = m_nativeFiles.value(start->playlist_entry_id);
+            if (m_loadPending || !m_gaplessEnabled) setFileLoaded(false);
+            break;
+        }
 
         case MPV_EVENT_FILE_LOADED: {
+            char *path = mpv_get_property_string(m_mpv, "path");
+            const QString loadedPath = !m_startedFile.isEmpty() ? m_startedFile
+                : (path ? QFileInfo(QString::fromUtf8(path)).absoluteFilePath() : QString());
+            mpv_free(path);
+            if (!loadedPath.isEmpty() && loadedPath != m_currentFile) {
+                m_currentFile = loadedPath;
+                const int queuedIndex = m_queuedFiles.indexOf(loadedPath);
+                if (queuedIndex >= 0) m_queuedFiles = m_queuedFiles.mid(queuedIndex + 1);
+                m_position = 0;
+                m_duration = 0;
+                emit currentFileChanged();
+                emit positionChanged();
+                emit durationChanged();
+                if (m_playlist) m_playlist->followPlayback(loadedPath);
+            }
             m_loadPending = false;
             setFileLoaded(true);
             updateAudioTracks();
@@ -215,13 +344,14 @@ void AudioPlayer::processMpvEvents()
             updateOutputAudioParams();
             updateVideoInfo();
             if (m_hasVideo) showVideo();
+            applyAudioFilters();
+            syncNextTrack();
             if (m_playWhenLoaded) {
                 int paused = 0;
                 m_paused = false;
                 mpv_set_property_async(m_mpv, 0, "pause", MPV_FORMAT_FLAG, &paused);
             }
             setPlaying(!m_paused);
-            applyAudioFilters();
             break;
         }
 
@@ -252,7 +382,8 @@ void AudioPlayer::processMpvEvents()
                 updateAudioTracks();
                 updateSourceAudioParams();
                 applyAudioFilters();
-            } else if (strcmp(property->name, "audio-params/channel-count") == 0) {
+            } else if (strcmp(property->name, "audio-params/channel-count") == 0
+                       || strcmp(property->name, "audio-params/channels") == 0) {
                 updateSourceAudioParams();
                 applyAudioFilters();
             } else if (strncmp(property->name, "audio-out-params/", 17) == 0) {
@@ -263,10 +394,18 @@ void AudioPlayer::processMpvEvents()
 
         case MPV_EVENT_END_FILE: {
             const auto *end = static_cast<mpv_event_end_file *>(event->data);
+            // A manual replacement reports STOP for the old entry before the new
+            // FILE_LOADED event. Do not cancel the new track's pending play request.
+            if (m_loadPending && end && end->reason == MPV_END_FILE_REASON_STOP) break;
             const bool reachedEnd = end && end->reason == MPV_END_FILE_REASON_EOF;
             if (end && end->reason == MPV_END_FILE_REASON_ERROR) {
                 qWarning() << "[AudioPlayer] Playback failed:" << mpv_error_string(end->error);
             }
+            if (reachedEnd && !m_queuedFiles.isEmpty()) {
+                // mpv advances its native queue without stopping/reopening the output.
+                break;
+            }
+            m_queuedFiles.clear();
             m_loadPending = false;
             m_playWhenLoaded = false;
             setFileLoaded(false);
@@ -299,6 +438,8 @@ void AudioPlayer::load(const QString &filePath)
 
     m_playWhenLoaded = false;
     m_loadPending = false;
+    m_queuedFiles.clear();
+    m_nativeFiles.clear();
     clearMediaInfo();
     if (m_sourceChannels != 0) {
         m_sourceChannels = 0;
@@ -319,6 +460,7 @@ void AudioPlayer::load(const QString &filePath)
     int paused = 1;
     m_paused = true;
     mpv_set_property_async(m_mpv, 0, "pause", MPV_FORMAT_FLAG, &paused);
+    applyAudioFilters(); // Clear the previous source’s channel-specific graph before loading.
     queueLoadCurrentFile();
     setVolume(m_volume);
 }
@@ -327,7 +469,10 @@ void AudioPlayer::play()
 {
     if (!m_mpv || m_currentFile.isEmpty()) return;
     m_playWhenLoaded = true;
-    if (!m_fileLoaded) queueLoadCurrentFile();
+    if (!m_fileLoaded) {
+        queueLoadCurrentFile();
+        return; // FILE_LOADED prepares DSP and the native queue before releasing pause.
+    }
 
     int paused = 0;
     m_paused = false;
@@ -356,6 +501,8 @@ void AudioPlayer::stop()
     if (!m_mpv) return;
     m_playWhenLoaded = false;
     m_loadPending = false;
+    m_queuedFiles.clear();
+    m_queueSyncTimer.stop();
     const char *command[] = {"stop", nullptr};
     mpv_command_async(m_mpv, 0, command);
     setFileLoaded(false);
@@ -374,6 +521,86 @@ void AudioPlayer::seek(double seconds)
     const QByteArray encodedValue = QByteArray::number(std::max(0.0, seconds), 'f', 3);
     const char *command[] = {"seek", encodedValue.constData(), "absolute", nullptr};
     mpv_command_async(m_mpv, 0, command);
+}
+
+QVariantList AudioPlayer::surroundCutoffs() const
+{
+    QVariantList result;
+    for (const int cutoff : m_surroundCutoffs) result.append(cutoff);
+    return result;
+}
+
+void AudioPlayer::setSurroundCutoff(int speaker, int hz)
+{
+    if (speaker < 0 || speaker >= 5) return;
+    m_surroundCutoffs[speaker] = std::clamp(hz, 0, 200);
+    QSettings().setValue(QString("speakers/surround/cutoff%1").arg(speaker), m_surroundCutoffs[speaker]);
+    emit speakerSettingsChanged();
+    applyAudioFilters();
+}
+
+void AudioPlayer::setSurroundSubwooferCutoff(int hz)
+{
+    m_surroundSubwooferCutoff = std::clamp(hz, 40, 200);
+    QSettings().setValue("speakers/surround/lowpass", m_surroundSubwooferCutoff);
+    emit speakerSettingsChanged();
+    applyAudioFilters();
+}
+
+void AudioPlayer::setSurroundSubwooferGain(double db)
+{
+    if (!std::isfinite(db)) return;
+    m_surroundSubwooferGain = std::clamp(db, -12.0, 6.0);
+    QSettings().setValue("speakers/surround/subGain", m_surroundSubwooferGain);
+    emit speakerSettingsChanged();
+    applyAudioFilters();
+}
+
+void AudioPlayer::resetSpeakerProfile(bool surround)
+{
+    if (surround) {
+        for (int i = 0; i < 5; ++i) {
+            m_surroundCutoffs[i] = 80;
+            QSettings().setValue(QString("speakers/surround/cutoff%1").arg(i), 80);
+        }
+        m_surroundSubwooferCutoff = 120;
+        m_surroundSubwooferGain = 0;
+        QSettings().setValue("speakers/surround/lowpass", 120);
+        QSettings().setValue("speakers/surround/subGain", 0);
+    } else {
+        m_speakerCutoff = m_subwooferCutoff = 80;
+        m_subwooferGain = 0;
+        QSettings().setValue("speakers/highpass", 80);
+        QSettings().setValue("speakers/lowpass", 80);
+        QSettings().setValue("speakers/subGain", 0);
+    }
+    emit speakerSettingsChanged();
+    applyAudioFilters();
+}
+
+void AudioPlayer::setSpeakerCutoff(int hz)
+{
+    m_speakerCutoff = std::clamp(hz, 0, 200);
+    QSettings().setValue("speakers/highpass", m_speakerCutoff);
+    emit speakerSettingsChanged();
+    applyAudioFilters();
+}
+
+void AudioPlayer::setSubwooferCutoff(int hz)
+{
+    m_subwooferCutoff = std::clamp(hz, 40, 200);
+    QSettings().setValue("speakers/lowpass", m_subwooferCutoff);
+    emit speakerSettingsChanged();
+    applyAudioFilters();
+}
+
+void AudioPlayer::setSubwooferGain(double db)
+{
+    if (!std::isfinite(db)) return;
+    m_subwooferGain = std::clamp(db, -12.0, 6.0);
+    QSettings().setValue("speakers/subGain", m_subwooferGain);
+    emit speakerSettingsChanged();
+    applyAudioFilters();
 }
 
 void AudioPlayer::setVolume(double volume)
@@ -425,12 +652,12 @@ void AudioPlayer::applyAudioFilters()
     if (!m_mpv) return;
 
     const QByteArray outputChannels = AudioRouting::outputChannels(m_surroundMode).toUtf8();
-    const int channelsStatus = mpv_set_property_string(m_mpv, "audio-channels",
-                                                        outputChannels.constData());
-    if (channelsStatus < 0) {
-        qWarning() << "[AudioPlayer] Failed to set output channels:"
-                   << mpv_error_string(channelsStatus);
+    if (m_appliedChannels != outputChannels) {
+        const int status = mpv_set_property_string(m_mpv, "audio-channels", outputChannels.constData());
+        if (status >= 0) m_appliedChannels = outputChannels;
+        else qWarning() << "[AudioPlayer] Failed to set output channels:" << mpv_error_string(status);
     }
+    if (!m_queuedFiles.isEmpty() && m_sourceChannels == 0) return;
 
     QStringList filters;
     if (m_eqEnabled) {
@@ -449,14 +676,25 @@ void AudioPlayer::applyAudioFilters()
         }
     }
 
-    if (AudioRouting::shouldUpmixToSurround(m_surroundMode, m_sourceChannels)) {
-        filters.append(AudioRouting::surroundUpmixFilter());
+    const bool upmix = AudioRouting::shouldUpmixToSurround(m_surroundMode, m_sourceChannels);
+    const bool native51 = m_sourceChannels == 6
+        && (m_sourceChannelLayout == "5.1" || m_sourceChannelLayout == "5.1(side)");
+    if (m_surroundMode == "SURROUND" && (upmix || native51)) {
+        filters.append(AudioRouting::surroundBassManagementFilter(m_surroundCutoffs,
+            m_surroundSubwooferCutoff, m_surroundSubwooferGain, upmix,
+            m_sourceChannelLayout == "5.1(side)"));
+    }
+
+    if (m_surroundMode == QStringLiteral("2.1") && m_sourceChannels > 0 && m_sourceChannels <= 2) {
+        filters.append(AudioRouting::bassManagedUpmixFilter(false, m_speakerCutoff, m_subwooferCutoff, m_subwooferGain));
     }
 
     const QString filter = filters.isEmpty() ? QString() : QString("lavfi=[%1]").arg(filters.join(','));
+    if (filter == m_appliedFilter) return;
     const QByteArray encodedFilter = filter.toUtf8();
     const int status = mpv_set_property_string(m_mpv, "af", encodedFilter.constData());
     if (status < 0) qWarning() << "[AudioPlayer] Failed to apply filters:" << mpv_error_string(status);
+    else m_appliedFilter = filter;
 }
 
 void AudioPlayer::updateSourceAudioParams()
@@ -467,11 +705,14 @@ void AudioPlayer::updateSourceAudioParams()
     const int status = mpv_get_property(m_mpv, "audio-params/channel-count",
                                         MPV_FORMAT_INT64, &channels);
     const int detectedChannels = status >= 0 ? static_cast<int>(channels) : 0;
+    char *layout = mpv_get_property_string(m_mpv, "audio-params/channels");
+    m_sourceChannelLayout = layout ? QString::fromUtf8(layout) : QString();
+    mpv_free(layout);
     if (m_sourceChannels == detectedChannels) return;
 
     m_sourceChannels = detectedChannels;
     emit sourceChannelsChanged();
-    qInfo() << "[AudioPlayer] Source audio channels:" << m_sourceChannels;
+    qInfo() << "[AudioPlayer] Source audio channels:" << m_sourceChannels << m_sourceChannelLayout;
 }
 
 void AudioPlayer::updateAudioTracks()
