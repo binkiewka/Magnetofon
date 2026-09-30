@@ -152,6 +152,27 @@ HifiPanel {
 
             ListView {
                 id: listView
+                objectName: "playlistView"
+                currentIndex: -1
+                keyNavigationEnabled: false
+                flickableDirection: Flickable.VerticalFlick
+                boundsBehavior: Flickable.StopAtBounds
+
+                function moveSelected(delta) {
+                    var from = currentIndex
+                    var to = from + delta
+                    if (from < 0 || to < 0 || to >= playlistModel.count) return
+                    playlistModel.moveTrack(from, to)
+                    currentIndex = to
+                    positionViewAtIndex(to, ListView.Contain)
+                    forceActiveFocus()
+                }
+                Keys.onUpPressed: function(event) { moveSelected(-1); event.accepted = true }
+                Keys.onDownPressed: function(event) { moveSelected(1); event.accepted = true }
+                Keys.onReturnPressed: function(event) {
+                    if (currentIndex >= 0) playlistModel.currentIndex = currentIndex
+                    event.accepted = true
+                }
                 anchors.fill: parent
                 anchors.margins: 4
                 clip: true
@@ -163,34 +184,19 @@ HifiPanel {
                     width: listView.width
                     height: 40
                     radius: 4
-                    color: index === playlistModel.currentIndex ? "#122f3a"
+                    color: index === listView.currentIndex ? "#122f3a"
                                                                    : (delegateHover.hovered ? "#17201f" : "#0b1011")
-                    border.color: index === playlistModel.currentIndex ? "#237da3" : "#1a2926"
+                    border.color: index === listView.currentIndex ? "#237da3" : "#1a2926"
                     border.width: 1
 
                     MouseArea {
                         anchors.fill: parent
-                        property real pressY: 0
-                        property bool reordering: false
-                        preventStealing: true
-                        cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
-                        onPressed: function(mouse) { pressY = mouse.y; reordering = false }
-                        onPositionChanged: function(mouse) {
-                            if (pressed && Math.abs(mouse.y - pressY) > 8) reordering = true
-                            if (pressed && reordering) {
-                                var p = mapToItem(listView, mouse.x, mouse.y)
-                                if (p.y < 20) listView.contentY = Math.max(0, listView.contentY - 12)
-                                if (p.y > listView.height - 20)
-                                    listView.contentY = Math.min(Math.max(0, listView.contentHeight - listView.height), listView.contentY + 12)
-                            }
+                        // Let ListView steal a drag for scrolling; never reorder on mouse movement.
+                        onClicked: {
+                            listView.currentIndex = index
+                            listView.forceActiveFocus()
                         }
-                        onReleased: function(mouse) {
-                            if (reordering) {
-                                var p = mapToItem(listView.contentItem, mouse.x, mouse.y)
-                                var target = Math.max(0, Math.min(playlistModel.count - 1, Math.floor(p.y / 42)))
-                                playlistModel.moveTrack(index, target)
-                            } else playlistModel.currentIndex = index
-                        }
+                        onDoubleClicked: playlistModel.currentIndex = index
                     }
 
                     RowLayout {
@@ -235,19 +241,31 @@ HifiPanel {
                             }
                         }
 
-                        Button {
+                        HifiButton {
+                            objectName: "moveUp" + index
                             text: "↑"
-                            implicitWidth: 25; implicitHeight: 25
+                            isCompact: true
+                            implicitWidth: 25; implicitHeight: 22
+                            focusPolicy: Qt.NoFocus
                             enabled: index > 0
-                            onClicked: playlistModel.moveTrack(index, index - 1)
+                            onClicked: {
+                                listView.currentIndex = index
+                                listView.moveSelected(-1)
+                            }
                             ToolTip.visible: hovered
                             ToolTip.text: "Move track up"
                         }
-                        Button {
+                        HifiButton {
+                            objectName: "moveDown" + index
                             text: "↓"
-                            implicitWidth: 25; implicitHeight: 25
+                            isCompact: true
+                            implicitWidth: 25; implicitHeight: 22
+                            focusPolicy: Qt.NoFocus
                             enabled: index < playlistModel.count - 1
-                            onClicked: playlistModel.moveTrack(index, index + 1)
+                            onClicked: {
+                                listView.currentIndex = index
+                                listView.moveSelected(1)
+                            }
                             ToolTip.visible: hovered
                             ToolTip.text: "Move track down"
                         }

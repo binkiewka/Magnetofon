@@ -104,7 +104,7 @@ The **PROGRAM MEMORY** panel provides four library controls:
 - **LOAD**: Replace the current queue with a saved `.m3u` or `.m3u8` playlist.
 - **SAVE**: Save the current queue as a UTF-8 `.m3u8` playlist. Media paths are stored relative to the playlist file where possible, making playlists portable with their library folder.
 
-Opening media from the file manager reuses the running player and appends to its queue without interrupting the active track. Drag a queue row to reorder it, or use its ↑/↓ buttons; the playing track remains selected.
+Opening media from the file manager reuses the running player and appends to its queue without interrupting the active track. Scroll the queue with the mouse wheel or by dragging. Click a row to highlight it, then use keyboard ↑/↓ or the row’s matching move buttons to reorder it without changing playback. Double-click a row (or press Enter on the highlighted row) to play it; the playing track retains its illuminated track number.
 
 Files are naturally ordered by folder and filename, so names such as `Album 2` precede `Album 10` and track `02` precedes track `10`. Existing queue entries are not duplicated. You can also drag individual files or an entire folder directly onto the playlist panel.
 
@@ -144,6 +144,16 @@ To build and run Magnetofon Native directly from the repository:
 ```
 
 `run.sh` performs an incremental CMake configure/build before launching, so local source and QML changes are always reflected in the executable.
+
+### Playlist interaction regression check
+
+With Qt's QML test runner and the QtTest QML module installed:
+
+```bash
+QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software /usr/lib/qt6/bin/qmltestrunner -input src-cpp/tests/qml
+```
+
+This exercises mouse-wheel and drag scrolling, independent row selection, keyboard/button reordering, and Enter-to-play.
 
 ### Manual Compilation via CMake
 
