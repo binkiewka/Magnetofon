@@ -6,6 +6,7 @@ Item {
     implicitHeight: 142
 
     property bool isPlaying: false
+    property bool hasMedia: false
     property double progress: 0.0
     property double duration: 1.0
     property double fillPct: duration > 0 ? Math.min(1.0, Math.max(0.0, progress / duration)) : 0.0
@@ -13,7 +14,10 @@ Item {
     Theme { id: theme }
 
     Rectangle {
-        anchors.fill: parent
+        objectName: "cassetteBody"
+        anchors.centerIn: parent
+        width: Math.min(parent.width, parent.height * 2.65)
+        height: width / 2.65
         radius: 7
         border.color: "#3c4844"
         border.width: 1
@@ -243,7 +247,7 @@ Item {
                             opacity: 0.85
                         }
                     }
-                    Text { text: "L"; color: theme.textMuted; font.family: theme.technicalFont; font.pixelSize: 7 }
+                    Text { text: "▶"; color: theme.textMuted; font.family: theme.technicalFont; font.pixelSize: 7 }
                 }
 
                 Column {
@@ -255,11 +259,11 @@ Item {
                         model: 5
                         Rectangle {
                             width: 4; height: 6; radius: 1
-                            color: root.isPlaying && index > 0 ? theme.cyan : "#27332f"
+                            color: root.isPlaying && index > 1 ? theme.cyan : "#27332f"
                             opacity: 0.85
                         }
                     }
-                    Text { text: "R"; color: theme.textMuted; font.family: theme.technicalFont; font.pixelSize: 7 }
+                    Text { text: "▶"; color: theme.textMuted; font.family: theme.technicalFont; font.pixelSize: 7 }
                 }
 
                 Row {
@@ -316,8 +320,8 @@ Item {
                 anchors.bottomMargin: 3
                 spacing: 20
                 Text { text: "MX-90"; color: "#52615c"; font.family: theme.technicalFont; font.pixelSize: 7; font.weight: Font.Bold }
-                Text { text: root.isPlaying ? "PLAY" : (playlistModel.count > 0 ? "CUED" : "EMPTY"); color: root.isPlaying ? theme.cyan : "#52615c"; font.family: theme.technicalFont; font.pixelSize: 7; font.weight: Font.Bold }
-                Text { text: "DOLBY NR"; color: "#52615c"; font.family: theme.technicalFont; font.pixelSize: 7; font.weight: Font.Bold }
+                Text { text: root.isPlaying ? "PLAY" : (root.hasMedia ? "CUED" : "EMPTY"); color: root.isPlaying ? theme.cyan : "#52615c"; font.family: theme.technicalFont; font.pixelSize: 7; font.weight: Font.Bold }
+                Text { text: "TYPE I"; color: "#52615c"; font.family: theme.technicalFont; font.pixelSize: 7; font.weight: Font.Bold }
             }
         }
     }

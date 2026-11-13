@@ -2,6 +2,7 @@
 
 #include <QLinearGradient>
 #include <QPainterPath>
+#include <QQuickWindow>
 #include <QRadialGradient>
 #include <algorithm>
 #include <cmath>
@@ -32,28 +33,56 @@ void VuMeterItem::setRightLevel(double level)
     }
 }
 
-void VuMeterItem::paint(QPainter *p)
+void VuMeterItem::ensureBackgroundCache(int w, int h, qreal dpr)
 {
-    p->setRenderHint(QPainter::Antialiasing, true);
-    p->setRenderHint(QPainter::TextAntialiasing, true);
-    p->setRenderHint(QPainter::SmoothPixmapTransform, true);
+    if (w <= 0 || h <= 0) return;
+    const QSize targetPixelSize(qRound(w * dpr), qRound(h * dpr));
+    if (!m_cachedBackground.isNull()
+        && m_cachedBackground.size() == targetPixelSize
+        && qFuzzyCompare(m_cachedBackground.devicePixelRatio(), dpr)) {
+        return;
+    }
 
-    const double w = width();
-    const double h = height();
+    m_cachedBackground = QImage(targetPixelSize, QImage::Format_ARGB32_Premultiplied);
+    m_cachedBackground.setDevicePixelRatio(dpr);
+    m_cachedBackground.fill(Qt::transparent);
+
+    QPainter bg(&m_cachedBackground);
+    bg.setRenderHint(QPainter::Antialiasing, true);
+    bg.setRenderHint(QPainter::TextAntialiasing, true);
 
     QLinearGradient frame(0, 0, 0, h);
     frame.setColorAt(0.0, QColor(62, 72, 69));
     frame.setColorAt(0.08, QColor(26, 33, 31));
     frame.setColorAt(0.92, QColor(7, 11, 12));
     frame.setColorAt(1.0, QColor(0, 2, 3));
-    p->setPen(QPen(QColor(95, 112, 107, 150), 1));
-    p->setBrush(frame);
-    p->drawRoundedRect(QRectF(0.5, 0.5, w - 1, h - 1), 5, 5);
+    bg.setPen(QPen(QColor(95, 112, 107, 150), 1));
+    bg.setBrush(frame);
+    bg.drawRoundedRect(QRectF(0.5, 0.5, w - 1, h - 1), 5, 5);
 
     const double gap = 7.0;
     const double meterW = (w - gap - 8.0) / 2.0;
-    drawMcIntoshDial(p, 3.0, 3.0, meterW, h - 6.0, m_leftLevel, "LEFT POWER OUTPUT");
-    drawMcIntoshDial(p, 3.0 + meterW + gap, 3.0, meterW, h - 6.0, m_rightLevel, "RIGHT POWER OUTPUT");
+    drawMcIntoshDialStatic(&bg, 3.0, 3.0, meterW, h - 6.0, QStringLiteral("LEFT SIGNAL"));
+    drawMcIntoshDialStatic(&bg, 3.0 + meterW + gap, 3.0, meterW, h - 6.0, QStringLiteral("RIGHT SIGNAL"));
+}
+
+void VuMeterItem::paint(QPainter *p)
+{
+    const double w = width();
+    const double h = height();
+    if (w <= 0.0 || h <= 0.0) return;
+
+    const qreal dpr = window() ? window()->devicePixelRatio() : 1.0;
+    ensureBackgroundCache(static_cast<int>(w), static_cast<int>(h), dpr);
+
+    p->setRenderHint(QPainter::Antialiasing, true);
+    p->setRenderHint(QPainter::SmoothPixmapTransform, true);
+    p->drawImage(QPointF(0, 0), m_cachedBackground);
+
+    const double gap = 7.0;
+    const double meterW = (w - gap - 8.0) / 2.0;
+    drawMcIntoshDialDynamic(p, 3.0, 3.0, meterW, h - 6.0, m_leftLevel);
+    drawMcIntoshDialDynamic(p, 3.0 + meterW + gap, 3.0, meterW, h - 6.0, m_rightLevel);
 
     QLinearGradient glassLine(0, 0, w, 0);
     glassLine.setColorAt(0.0, QColor(0, 175, 255, 50));
@@ -64,8 +93,8 @@ void VuMeterItem::paint(QPainter *p)
     p->drawRoundedRect(QRectF(1.5, 1.5, w - 3, h - 3), 4, 4);
 }
 
-void VuMeterItem::drawMcIntoshDial(QPainter *p, double x, double y, double w, double h,
-                                    double level, const QString &label)
+void VuMeterItem::drawMcIntoshDialStatic(QPainter *p, double x, double y, double w, double h,
+                                         const QString &label)
 {
     p->save();
     p->translate(x, y);
@@ -112,21 +141,21 @@ void VuMeterItem::drawMcIntoshDial(QPainter *p, double x, double y, double w, do
     const double radius = h * 0.72;
     const double startAngle = 135.0;
     const double spanAngle = -90.0;
-    const double currentAngle = startAngle + spanAngle * std::min(1.05, level);
 
     const QRectF arcRect(cx - radius, cy - radius, radius * 2.0, radius * 2.0);
     p->setBrush(Qt::NoBrush);
     p->setPen(QPen(QColor(225, 246, 255, 230), 1.4));
     p->drawArc(arcRect, 45 * 16, 90 * 16);
 
-    static const char *scaleLabels[] = {"−40", "−20", "−10", "−5", "−3", "0", "+3"};
-    QFont scaleFont("DejaVu Sans Mono");
+    // Input is normalized RMS dBFS over -55..-5, not amplifier watts.
+    static const int scaleDb[] = {-50, -40, -30, -20, -10, -5};
+    QFont scaleFont(QStringLiteral("DejaVu Sans Mono"));
     scaleFont.setPixelSize(std::max(6, static_cast<int>(h * 0.075)));
     scaleFont.setWeight(QFont::DemiBold);
     p->setFont(scaleFont);
 
-    for (int i = 0; i < 7; ++i) {
-        const double norm = i / 6.0;
+    for (int i = 0; i < 6; ++i) {
+        const double norm = (scaleDb[i] + 55.0) / 50.0;
         const double degrees = startAngle + spanAngle * norm;
         const double angle = degrees * M_PI / 180.0;
         const bool danger = i >= 5;
@@ -144,10 +173,10 @@ void VuMeterItem::drawMcIntoshDial(QPainter *p, double x, double y, double w, do
                          cy - std::sin(angle) * labelRadius);
         p->setPen(tickColor);
         p->drawText(QRectF(lp.x() - 12, lp.y() - 6, 24, 12), Qt::AlignCenter,
-                    QString::fromUtf8(scaleLabels[i]));
+                    QString::number(scaleDb[i]));
     }
 
-    QFont titleFont("Noto Sans");
+    QFont titleFont(QStringLiteral("Noto Sans"));
     titleFont.setPixelSize(std::max(7, static_cast<int>(h * 0.082)));
     titleFont.setWeight(QFont::DemiBold);
     titleFont.setLetterSpacing(QFont::AbsoluteSpacing, 0.45);
@@ -155,12 +184,34 @@ void VuMeterItem::drawMcIntoshDial(QPainter *p, double x, double y, double w, do
     p->setPen(QColor(225, 247, 255, 225));
     p->drawText(QRectF(9, 6, w - 18, 14), Qt::AlignCenter, label);
 
-    QFont unitFont("DejaVu Sans Mono");
+    QFont unitFont(QStringLiteral("DejaVu Sans Mono"));
     unitFont.setPixelSize(std::max(6, static_cast<int>(h * 0.065)));
     unitFont.setLetterSpacing(QFont::AbsoluteSpacing, 0.8);
     p->setFont(unitFont);
     p->setPen(QColor(120, 212, 239, 190));
-    p->drawText(QRectF(0, h - 20, w, 12), Qt::AlignCenter, "WATTS  /  8Ω");
+    p->drawText(QRectF(0, h - 20, w, 12), Qt::AlignCenter, QStringLiteral("RMS dBFS"));
+
+    p->setClipping(false);
+    p->restore();
+}
+
+void VuMeterItem::drawMcIntoshDialDynamic(QPainter *p, double x, double y, double w, double h,
+                                          double level)
+{
+    p->save();
+    p->translate(x, y);
+
+    const QRectF faceRect(3.0, 3.0, w - 6.0, h - 7.0);
+    QPainterPath facePath;
+    facePath.addRoundedRect(faceRect, 3, 3);
+    p->setClipPath(facePath);
+
+    const double cx = w / 2.0;
+    const double cy = h * 1.02;
+    const double radius = h * 0.72;
+    const double startAngle = 135.0;
+    const double spanAngle = -90.0;
+    const double currentAngle = startAngle + spanAngle * std::min(1.05, level);
 
     const double needleAngle = currentAngle * M_PI / 180.0;
     const QPointF needleEnd(cx + std::cos(needleAngle) * (radius + 3),
@@ -180,7 +231,8 @@ void VuMeterItem::drawMcIntoshDial(QPainter *p, double x, double y, double w, do
     reflection.closeSubpath();
     p->drawPath(reflection);
 
-    const bool peak = level > 0.88;
+    // This is a high RMS indicator, not an unmeasured sample-peak/clip lamp.
+    const bool peak = level >= 0.98;
     QRadialGradient led(w - 12, 12, 5);
     led.setColorAt(0.0, peak ? QColor(255, 133, 151) : QColor(59, 13, 22));
     led.setColorAt(0.45, peak ? QColor(255, 42, 76) : QColor(31, 8, 13));

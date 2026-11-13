@@ -1,0 +1,4 @@
+63063cd14010704e4564b8a82a33a2f983e0092e78a0b18f8ee3d3dda7d14dc0  frontend-sdl-cpp.patch
+636c8e163cd43d4b257f544abde1f9db6a0675d240afd2b1c7270ec19c9e4c5a  magnetofon-audio.patch
+bcc4fb1e3c623453d4bb1747a67d3be7cfc6e7fc7001f204be127f0fa805d68f  projectm-core.patch
+6e65a81cefe5251ece91f79db08cdb7103a453b467d3b45b8ed9d0ddc5a1a91d  window-drag.patch

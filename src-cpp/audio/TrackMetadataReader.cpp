@@ -17,9 +17,14 @@ extern "C" {
 #include <QDir>
 #include <QUrl>
 #include <QStringList>
+#include <QCryptographicHash>
+#include <QStandardPaths>
+#include <QHash>
 
 #include <algorithm>
 #include <mutex>
+#include <chrono>
+#include <QSaveFile>
 
 namespace {
 
@@ -95,6 +100,17 @@ QString channelLabel(int channels)
 }
 
 #if HAVE_FFMPEG
+QString artworkExtension(AVCodecID codecId)
+{
+    switch (codecId) {
+    case AV_CODEC_ID_PNG: return QStringLiteral(".png");
+    case AV_CODEC_ID_WEBP: return QStringLiteral(".webp");
+    case AV_CODEC_ID_BMP: return QStringLiteral(".bmp");
+    case AV_CODEC_ID_GIF: return QStringLiteral(".gif");
+    default: return QStringLiteral(".jpg");
+    }
+}
+
 QString artworkMimeType(AVCodecID codecId)
 {
     switch (codecId) {
@@ -109,29 +125,74 @@ QString artworkMimeType(AVCodecID codecId)
         return QStringLiteral("image/jpeg");
     }
 }
+
+QString cacheAttachedPicture(const QByteArray &bytes, AVCodecID codecId)
+{
+    const QString cacheRoot = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+    if (!cacheRoot.isEmpty()) {
+        const QString artDir = QDir(cacheRoot).filePath(QStringLiteral("artwork"));
+        if (QDir().mkpath(artDir)) {
+            const QByteArray digest = QCryptographicHash::hash(bytes, QCryptographicHash::Sha256).toHex().left(24);
+            const QString filePath = QDir(artDir).filePath(QString::fromLatin1(digest) + artworkExtension(codecId));
+            if (!QFileInfo::exists(filePath)) {
+                QSaveFile out(filePath);
+                if (out.open(QIODevice::WriteOnly) && out.write(bytes) == bytes.size()) {
+                    out.commit();
+                }
+            }
+            if (QFileInfo::exists(filePath)) {
+                return QUrl::fromLocalFile(filePath).toString();
+            }
+        }
+    }
+    return QStringLiteral("data:") + artworkMimeType(codecId)
+           + QStringLiteral(";base64,")
+           + QString::fromLatin1(bytes.toBase64());
+}
 #endif
 
+QFileInfoList cachedDirectoryImages(const QString &dirPath)
+{
+    static std::mutex cacheMutex;
+    static QHash<QString, QFileInfoList> dirImageCache;
+    static const QStringList imageExtensions = {
+        QStringLiteral("jpg"), QStringLiteral("jpeg"), QStringLiteral("png"),
+        QStringLiteral("webp"), QStringLiteral("bmp")
+    };
+
+    std::lock_guard<std::mutex> lock(cacheMutex);
+    auto it = dirImageCache.find(dirPath);
+    if (it != dirImageCache.end()) {
+        return it.value();
+    }
+
+    if (dirImageCache.size() > 256) {
+        dirImageCache.clear();
+    }
+
+    const QFileInfoList directoryFiles = QDir(dirPath).entryInfoList(
+        QDir::Files | QDir::Readable, QDir::Name | QDir::IgnoreCase);
+    QFileInfoList images;
+    for (const QFileInfo &candidate : directoryFiles) {
+        if (imageExtensions.contains(candidate.suffix().toLower())) {
+            images.append(candidate);
+        }
+    }
+    return dirImageCache.insert(dirPath, images).value();
+}
 
 QString folderArtworkUrl(const QString &audioFilePath)
 {
     const QFileInfo audioFile(audioFilePath);
-    const QFileInfoList directoryFiles = QDir(audioFile.absolutePath()).entryInfoList(
-        QDir::Files | QDir::Readable, QDir::Name | QDir::IgnoreCase);
+    const QFileInfoList images = cachedDirectoryImages(audioFile.absolutePath());
+    if (images.isEmpty()) return {};
+
     const QString trackStem = audioFile.completeBaseName().toLower();
     static const QStringList preferredNames = {
         QStringLiteral("cover"), QStringLiteral("folder"), QStringLiteral("front"),
         QStringLiteral("album"), QStringLiteral("albumart"), QStringLiteral("album_art"),
         QStringLiteral("artwork"), QStringLiteral("thumbnail")
     };
-    static const QStringList imageExtensions = {
-        QStringLiteral("jpg"), QStringLiteral("jpeg"), QStringLiteral("png"),
-        QStringLiteral("webp"), QStringLiteral("bmp")
-    };
-
-    QFileInfoList images;
-    for (const QFileInfo &candidate : directoryFiles) {
-        if (imageExtensions.contains(candidate.suffix().toLower())) images.append(candidate);
-    }
 
     auto asUrl = [](const QFileInfo &file) {
         return QUrl::fromLocalFile(file.absoluteFilePath()).toString();
@@ -157,16 +218,29 @@ QString folderArtworkUrl(const QString &audioFilePath)
 
 } // namespace
 
-TrackMetadata TrackMetadataReader::read(const QString &filePath)
+TrackMetadata TrackMetadataReader::read(const QString &filePath,
+                                        const std::function<bool()> &shouldCancel)
 {
     TrackMetadata metadata;
+    if (shouldCancel && shouldCancel()) return metadata;
     metadata.artworkUrl = folderArtworkUrl(filePath);
 
 #if HAVE_FFMPEG
     static std::once_flag logSetup;
     std::call_once(logSetup, [] { av_log_set_level(AV_LOG_ERROR); });
 
-    AVFormatContext *context = nullptr;
+    struct ProbeControl {
+        const std::function<bool()> &cancel;
+        std::chrono::steady_clock::time_point deadline;
+    } control{shouldCancel, std::chrono::steady_clock::now() + std::chrono::seconds(5)};
+    AVFormatContext *context = avformat_alloc_context();
+    if (!context) return metadata;
+    context->interrupt_callback.callback = [](void *opaque) -> int {
+        const auto &control = *static_cast<ProbeControl *>(opaque);
+        return (control.cancel && control.cancel())
+               || std::chrono::steady_clock::now() >= control.deadline;
+    };
+    context->interrupt_callback.opaque = &control;
     const QByteArray encodedPath = QFile::encodeName(filePath);
     if (avformat_open_input(&context, encodedPath.constData(), nullptr, nullptr) < 0) {
         return metadata;
@@ -255,9 +329,7 @@ TrackMetadata TrackMetadataReader::read(const QString &filePath)
         if (!picture.data || picture.size <= 0) continue;
 
         const QByteArray bytes(reinterpret_cast<const char *>(picture.data), picture.size);
-        metadata.artworkUrl = QStringLiteral("data:") + artworkMimeType(stream->codecpar->codec_id)
-                              + QStringLiteral(";base64,")
-                              + QString::fromLatin1(bytes.toBase64());
+        metadata.artworkUrl = cacheAttachedPicture(bytes, stream->codecpar->codec_id);
         break;
     }
 

@@ -6,9 +6,11 @@ RUNTIME="$ROOT/resources/projectm/linux-x64"
 BINARY="$RUNTIME/bin/projectMSDL"
 HELP_LOG="$(mktemp)"
 RUNTIME_LOG="$(mktemp)"
+ISOLATED_STATE="$(mktemp -d)"
 
 cleanup() {
   rm -f "$HELP_LOG" "$RUNTIME_LOG"
+  rm -rf -- "$ISOLATED_STATE"
 }
 trap cleanup EXIT
 
@@ -20,7 +22,7 @@ fi
 export LD_LIBRARY_PATH="$RUNTIME/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
 "$BINARY" --help > "$HELP_LOG" 2>&1
-for option in borderless presetDuration transitionDuration beatSensitivity hardCutsEnabled; do
+for option in borderless presetDuration transitionDuration beatSensitivity hardCutsEnabled magnetofonPid; do
   if ! grep -q -- "--$option" "$HELP_LOG"; then
     echo "Bundled projectMSDL does not support --$option" >&2
     cat "$HELP_LOG"
@@ -38,10 +40,12 @@ set +e
 # the first preset appears. Leave enough time to observe multiple timed
 # rotations after startup instead of treating a slow runner as a failure.
 timeout 24s xvfb-run --auto-servernum env SDL_AUDIODRIVER=dummy \
+  XDG_CONFIG_HOME="$ISOLATED_STATE" PULSE_SERVER="unix:$ISOLATED_STATE/no-server" \
   "$BINARY" \
   --presetPath="$ROOT/visuals/curated/presets" \
   --texturePath="$RUNTIME/textures" \
   --enableSplash=0 \
+  --magnetofonPid=2147483647 \
   --borderless=1 \
   --shuffleEnabled=0 \
   --fps=30 \
@@ -58,6 +62,8 @@ if [[ "$runtime_status" -ne 124 ]]; then
   cat "$RUNTIME_LOG"
   exit 1
 fi
+
+grep -F "MAGNETOFON_AUDIO unavailable" "$RUNTIME_LOG" >/dev/null
 
 preset_count="$(grep -c 'Displaying preset:' "$RUNTIME_LOG" || true)"
 if (( preset_count < 3 )); then

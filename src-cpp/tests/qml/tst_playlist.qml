@@ -2,11 +2,13 @@ import QtQuick 2.15
 import QtTest 1.2
 import "../../ui/qml"
 Item {
-    width: 480; height: 300
+    width: 540; height: 360
     ListModel {
         id: playlistModel
         property int currentIndex: 0
         property int moveCount: 0
+        property int activateCount: 0
+        function activateTrack(index) { currentIndex = index; activateCount++ }
         function moveTrack(from, to) {
             move(from, to, 1)
             moveCount++
@@ -40,9 +42,15 @@ Item {
             compare(playlistModel.currentIndex, 0)
             keyClick(Qt.Key_Down)
             compare(view.currentIndex, 2)
-            compare(playlistModel.get(2).title, "Track 1")
+            compare(playlistModel.get(2).title, "Track 2")
+            compare(playlistModel.moveCount, 0)
             compare(playlistModel.currentIndex, 0)
             keyClick(Qt.Key_Up)
+            compare(view.currentIndex, 1)
+            keyClick(Qt.Key_Down, Qt.ControlModifier)
+            compare(view.currentIndex, 2)
+            compare(playlistModel.get(2).title, "Track 1")
+            keyClick(Qt.Key_Up, Qt.ControlModifier)
             compare(view.currentIndex, 1)
             compare(playlistModel.get(1).title, "Track 1")
             mouseClick(findChild(panel, "moveDown1"))
@@ -51,6 +59,8 @@ Item {
             compare(playlistModel.currentIndex, 0)
             keyClick(Qt.Key_Return)
             compare(playlistModel.currentIndex, 2)
+            keyClick(Qt.Key_Return)
+            compare(playlistModel.activateCount, 2)
         }
     }
 }

@@ -19,6 +19,14 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Validate Release Version
+        run: |
+          version="$(sed -n 's/^project(Magnetofon VERSION \([0-9.]*\).*/\1/p' src-cpp/CMakeLists.txt)"
+          test -n "$version"
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            test "$GITHUB_REF_NAME" = "v$version"
+          fi
+
       - name: Install Qt 6 and Build Dependencies
         run: |
           sudo apt-get update
@@ -31,6 +39,7 @@ jobs:
             qt6-base-dev \
             qt6-declarative-dev \
             qml6-module-qtqml-workerscript \
+            qml6-module-qttest \
             qml6-module-qtquick* \
             qml6-module-qtquick-controls \
             qml6-module-qtquick-templates \
@@ -39,6 +48,7 @@ jobs:
             qt6-tools-dev \
             libmpv-dev \
             libpulse-dev \
+            unzip \
             libavformat-dev \
             libavcodec-dev \
             libavutil-dev \
@@ -98,14 +108,33 @@ jobs:
           QT_QPA_PLATFORM=offscreen \
             ctest --test-dir src-cpp/build --output-on-failure
 
+      - name: Build and Run Sanitizer Regressions
+        run: |
+          cmake -S src-cpp -B sanitizer-build -GNinja \
+            -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON \
+            -DMAGNETOFON_ENABLE_SANITIZERS=ON
+          cmake --build sanitizer-build --parallel 2
+          MAGNETOFON_SURROUND_TEST_FILE="$GITHUB_WORKSPACE/ci-fixtures/multichannel.flac" \
+          MAGNETOFON_VIDEO_TEST_FILE="$GITHUB_WORKSPACE/ci-fixtures/multichannel-video.mkv" \
+          MAGNETOFON_MULTITRACK_VIDEO_TEST_FILE="$GITHUB_WORKSPACE/ci-fixtures/multichannel-video.mkv" \
+          MAGNETOFON_VIDEO_TEST_DIR="$GITHUB_WORKSPACE/ci-fixtures" \
+          QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
+            ctest --test-dir sanitizer-build --output-on-failure
+
       - name: Smoke Test Bundled projectM Runtime
         run: |
+          python3 scripts/verify-projectm-runtime.py
           bash scripts/smoke-test-projectm-linux.sh
 
       - name: Package Linux AppImage & DEB
         run: |
           mkdir -p AppDir/usr/bin AppDir/usr/libexec/magnetofon AppDir/usr/share/magnetofon/visuals AppDir/usr/share/icons/hicolor/256x256/apps release-artifacts
           cp src-cpp/build/MagnetofonNative AppDir/usr/bin/
+          mkdir -p AppDir/usr/share/doc/magnetofon
+          cp LICENSE THIRD-PARTY.md AppDir/usr/share/doc/magnetofon/
+          cp -a resources/licenses AppDir/usr/share/doc/magnetofon/licenses
+          cp resources/mpv/NOTICE.md AppDir/usr/share/doc/magnetofon/mpv-NOTICE.md
+          cp /usr/bin/unzip AppDir/usr/bin/unzip
           cp -a resources/projectm/linux-x64 AppDir/usr/libexec/magnetofon/projectm
           cp -a visuals/curated AppDir/usr/share/magnetofon/visuals/curated
           cp resources/icon-256.png AppDir/magnetofon.png
@@ -142,6 +171,7 @@ jobs:
           ./linuxdeploy-x86_64.AppImage \
             --appdir AppDir \
             --executable AppDir/usr/bin/MagnetofonNative \
+            --executable AppDir/usr/bin/unzip \
             --executable AppDir/usr/libexec/magnetofon/projectm/bin/projectMSDL \
             --desktop-file AppDir/magnetofon.desktop \
             --icon-file AppDir/magnetofon.png \
@@ -149,12 +179,14 @@ jobs:
             --output appimage
 
 
-          mv Magnetofon*.AppImage release-artifacts/Magnetofon-x86_64.AppImage
+          version="$(sed -n 's/^project(Magnetofon VERSION \([0-9.]*\).*/\1/p' src-cpp/CMakeLists.txt)"
+          appimage="release-artifacts/Magnetofon-$version-x86_64.AppImage"
+          mv Magnetofon*.AppImage "$appimage"
 
           # A healthy GUI remains open. Missing QML modules make it exit early.
           set +e
           APPIMAGE_EXTRACT_AND_RUN=1 timeout 8s xvfb-run --auto-servernum \
-            release-artifacts/Magnetofon-x86_64.AppImage \
+            "$appimage" \
             "$GITHUB_WORKSPACE/ci-fixtures/multichannel-video.mkv" \
             > appimage-smoke.log 2>&1
           appimage_status=$?
@@ -184,7 +216,7 @@ jobs:
       - name: Install Qt 6
         uses: jurplel/install-qt-action@v4
         with:
-          version: '6.7.*'
+          version: '6.7.3'
           target: 'desktop'
           arch: 'win64_msvc2019_64'
 
@@ -199,13 +231,18 @@ jobs:
         run: |
           New-Item -ItemType Directory -Path mpv-dev -Force
           [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-          $url = "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20260901/mpv-dev-x86_64-20260901-git-02a595ddc1.7z"
+          $url = "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20261111/mpv-dev-x86_64-20261111-git-bcde6b93cc.7z"
           Invoke-WebRequest -Uri $url -OutFile "mpv-dev.7z" -UserAgent "NativeHost"
           if ((Get-Item "mpv-dev.7z").Length -lt 1000000) {
               Write-Host "Invoke-WebRequest produced small file, retrying with curl.exe..."
               curl.exe -sSL "$url" -o "mpv-dev.7z"
           }
+          $expected = "273c079b11ea5575822f972756f4c9a71149a5c10130353abeb8586738938452"
+          if ((Get-FileHash mpv-dev.7z -Algorithm SHA256).Hash.ToLower() -ne $expected) {
+              throw "Pinned libmpv archive checksum mismatch"
+          }
           7z x mpv-dev.7z -ompv-dev -y
+          if ($LASTEXITCODE -ne 0) { throw "libmpv extraction failed" }
 
 
 
@@ -215,6 +252,7 @@ jobs:
         run: |
           cmake -B src-cpp/build -S src-cpp ^
             -DCMAKE_BUILD_TYPE=Release ^
+            -DBUILD_TESTING=OFF ^
             -DMPV_INCLUDE_DIRS="%CD%\mpv-dev" ^
             -DMPV_LIBRARY_DIRS="%CD%\mpv-dev" ^
             -GNinja
@@ -230,9 +268,37 @@ jobs:
           New-Item -ItemType Directory -Path release-artifacts
           New-Item -ItemType Directory -Path dist-win
           Copy-Item src-cpp\build\MagnetofonNative.exe dist-win\MagnetofonNative.exe
-          Copy-Item mpv-dev\libmpv-2.dll dist-win\libmpv-2.dll -ErrorAction SilentlyContinue
+          Copy-Item LICENSE, THIRD-PARTY.md dist-win\
+          Copy-Item resources\licenses dist-win\licenses -Recurse
+          Copy-Item resources\mpv\NOTICE.md dist-win\mpv-NOTICE.md
+          Copy-Item mpv-dev\libmpv-2.dll dist-win\libmpv-2.dll -ErrorAction Stop
           windeployqt --qmldir src-cpp/ui/qml dist-win/MagnetofonNative.exe
-          Compress-Archive -Path dist-win\* -DestinationPath release-artifacts\Magnetofon-Windows-x64.zip
+          if ($LASTEXITCODE -ne 0) { throw "Qt deployment failed" }
+          $version = [regex]::Match((Get-Content src-cpp/CMakeLists.txt -Raw), 'project\(Magnetofon VERSION ([0-9.]+)').Groups[1].Value
+          if (!$version) { throw "Missing project version" }
+          if ((Get-Item dist-win\MagnetofonNative.exe).VersionInfo.ProductVersion -ne $version) { throw "Executable version does not match CMake" }
+          Compress-Archive -Path dist-win\* -DestinationPath "release-artifacts\Magnetofon-$version-Windows-x64.zip"
+
+      - name: Smoke Test Extracted Windows Bundle
+        shell: powershell
+        run: |
+          $bundle = Get-Item release-artifacts\*.zip
+          Expand-Archive $bundle.FullName -DestinationPath extracted-win
+          $private = Join-Path $env:RUNNER_TEMP "magnetofon-smoke"
+          New-Item -ItemType Directory -Path $private -Force | Out-Null
+          $env:APPDATA = $private
+          $env:LOCALAPPDATA = $private
+          $env:QT_LOGGING_TO_CONSOLE = '1'
+          $env:QT_QUICK_BACKEND = 'software'
+          $process = Start-Process -FilePath "$PWD\extracted-win\MagnetofonNative.exe" -PassThru -RedirectStandardOutput "$private\out.log" -RedirectStandardError "$private\err.log"
+          Start-Sleep -Seconds 8
+          $process.Refresh()
+          if ($process.HasExited) {
+              Get-Content "$private\out.log", "$private\err.log"
+              throw "Extracted Windows app exited during startup: $($process.ExitCode)"
+          }
+          if (!$process.CloseMainWindow()) { Stop-Process -Id $process.Id }
+          if (!$process.WaitForExit(10000)) { Stop-Process -Id $process.Id; throw "Windows app did not close" }
 
       - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4
@@ -286,16 +352,23 @@ jobs:
             exit 1
           fi
 
+          (cd release-assets && sha256sum -- * > SHA256SUMS)
+          assets+=(release-assets/SHA256SUMS)
+          notes="docs/releases/$RELEASE_TAG.md"
+          test -s "$notes"
+
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            test "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = true
             gh release edit "$RELEASE_TAG" \
               --title "Magnetofon ST-8000 ${RELEASE_TAG}" \
-              --notes "Magnetofon ST-8000 — High-Fidelity Audio Console (Native C++ / Qt 6 QML)" \
-              --draft=false \
+              --notes-file "$notes" \
+              --draft=true \
               --prerelease=false
           else
             gh release create "$RELEASE_TAG" \
               --title "Magnetofon ST-8000 ${RELEASE_TAG}" \
-              --notes "Magnetofon ST-8000 — High-Fidelity Audio Console (Native C++ / Qt 6 QML)"
+              --notes-file "$notes" --draft
           fi
 
           gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
+          gh release edit "$RELEASE_TAG" --draft=false --latest

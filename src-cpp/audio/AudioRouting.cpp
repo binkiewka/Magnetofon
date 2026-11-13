@@ -16,6 +16,13 @@ bool shouldUpmixToSurround(const QString &mode, int sourceChannels)
            && sourceChannels > 0 && sourceChannels <= 2;
 }
 
+QString enhancementProtectionFilter()
+{
+    // 5 ms look-ahead; shared reduction retains relative channel balance. Off
+    // below threshold. Latency compensation keeps video and album timing aligned.
+    return QStringLiteral("alimiter=limit=0.98:level=0:attack=5:release=100:latency=1");
+}
+
 QString surroundUpmixFilter()
 {
     return QStringLiteral(

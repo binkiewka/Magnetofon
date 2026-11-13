@@ -4,6 +4,7 @@ import QtQuick.Layouts 1.15
 
 Rectangle {
     id: root
+    objectName: "visualsControlPanel"
     anchors.fill: parent
     z: 999
     color: "#e6080b0d"
@@ -48,7 +49,7 @@ Rectangle {
                 implicitHeight: 62
                 radius: 6
                 color: "#091014"
-                border.color: visualizerLauncher.isRunning ? "#285d50" : "#3b2c31"
+                border.color: visualizerLauncher.audioLive ? "#285d50" : "#3b2c31"
 
                 RowLayout {
                     anchors.fill: parent
@@ -59,10 +60,10 @@ Rectangle {
                         width: 12
                         height: 12
                         radius: 6
-                        color: visualizerLauncher.isRunning ? "#2ee59d" : theme.red
+                        color: visualizerLauncher.audioLive ? "#2ee59d" : (visualizerLauncher.isRunning ? theme.amber : theme.red)
 
                         SequentialAnimation on opacity {
-                            running: visualizerLauncher.isRunning
+                            running: visualizerLauncher.audioLive
                             loops: Animation.Infinite
                             NumberAnimation { to: 0.42; duration: 850 }
                             NumberAnimation { to: 1.0; duration: 850 }
@@ -74,8 +75,9 @@ Rectangle {
                         spacing: 2
 
                         Text {
-                            text: visualizerLauncher.isRunning ? "NATIVE PROJECTM · RUNNING" : "NATIVE PROJECTM · STOPPED"
-                            color: visualizerLauncher.isRunning ? "#67f3b9" : theme.red
+                            text: !visualizerLauncher.runtimeAvailable ? "NATIVE VISUALS · UNAVAILABLE"
+                                  : (visualizerLauncher.isRunning ? "NATIVE PROJECTM · RENDERING" : "NATIVE PROJECTM · STOPPED")
+                            color: visualizerLauncher.audioLive ? "#67f3b9" : (visualizerLauncher.isRunning ? theme.amber : theme.red)
                             font.family: theme.technicalFont
                             font.pixelSize: 9
                             font.weight: Font.Bold
@@ -83,7 +85,9 @@ Rectangle {
                         }
 
                         Text {
-                            text: visualizerLauncher.currentPresetName !== ""
+                            text: !visualizerLauncher.runtimeAvailable ? visualizerLauncher.runtimeUnavailableReason
+                                  : visualizerLauncher.isRunning ? visualizerLauncher.audioStatus
+                                  : visualizerLauncher.currentPresetName !== ""
                                   ? "NOW PLAYING  ·  " + visualizerLauncher.currentPresetName
                                   : visualizerLauncher.statusMessage
                             color: theme.textSoft
@@ -97,14 +101,16 @@ Rectangle {
                             text: visualizerLauncher.isRunning ? visualizerLauncher.statusMessage : "Settings are saved automatically"
                             color: theme.textMuted
                             font.family: theme.technicalFont
-                            font.pixelSize: 7
+                            font.pixelSize: 9
                             elide: Text.ElideRight
                             Layout.fillWidth: true
                         }
                     }
 
                     HifiButton {
+                        objectName: "launchVisualsButton"
                         text: visualizerLauncher.isRunning ? "STOP VISUALS" : "LAUNCH VISUALS"
+                        enabled: visualizerLauncher.runtimeAvailable || visualizerLauncher.isRunning
                         iconSymbol: visualizerLauncher.isRunning ? "■" : "▶"
                         isPrimary: !visualizerLauncher.isRunning
                         isStop: visualizerLauncher.isRunning
@@ -168,7 +174,7 @@ Rectangle {
                                         text: visualizerLauncher.presetCount + " ACTIVE"
                                         color: theme.cyanBright
                                         font.family: theme.technicalFont
-                                        font.pixelSize: 7
+                                        font.pixelSize: 9
                                         font.weight: Font.Bold
                                     }
                                 }
@@ -206,6 +212,14 @@ Rectangle {
                                     Layout.fillWidth: true
                                     onClicked: visualizerLauncher.presetSource = "ALL"
                                 }
+                                HifiButton {
+                                    text: "MY PRESETS"
+                                    isCompact: true
+                                    isPrimary: visualizerLauncher.presetSource === "USER"
+                                    enabled: visualizerLauncher.userLibraryAvailable
+                                    Layout.fillWidth: true
+                                    onClicked: visualizerLauncher.presetSource = "USER"
+                                }
                             }
 
                             RowLayout {
@@ -227,18 +241,21 @@ Rectangle {
                                         text: visualizerLauncher.activePresetDirectory
                                         color: theme.textMuted
                                         font.family: theme.technicalFont
-                                        font.pixelSize: 7
+                                        font.pixelSize: 9
                                         elide: Text.ElideMiddle
                                         Layout.fillWidth: true
                                     }
                                 }
 
                                 HifiButton {
-                                    text: presetPackDownloader.isInstalled ? "REINSTALL FULL PACK" : "DOWNLOAD FULL PACK · 138 MB"
+                                    text: presetPackDownloader.isDownloading ? "CANCEL DOWNLOAD / INSTALL"
+                                          : (presetPackDownloader.isInstalled ? "REINSTALL FULL PACK" : "DOWNLOAD FULL PACK · 138 MB")
                                     iconSymbol: "↓"
                                     isCompact: true
-                                    enabled: !presetPackDownloader.isDownloading
-                                    onClicked: presetPackDownloader.downloadPack()
+                                    isStop: presetPackDownloader.isDownloading
+                                    onClicked: presetPackDownloader.isDownloading
+                                               ? presetPackDownloader.cancelDownload()
+                                               : presetPackDownloader.downloadPack()
                                 }
                             }
 
@@ -426,10 +443,10 @@ Rectangle {
                             Text {
                                 text: "Audio source  ·  " + (visualizerLauncher.audioSourceName !== ""
                                       ? visualizerLauncher.audioSourceName
-                                      : "system output monitor (resolved when visuals launch)")
+                                      : "Magnetofon playback only")
                                 color: theme.textMuted
                                 font.family: theme.technicalFont
-                                font.pixelSize: 7
+                                font.pixelSize: 9
                                 elide: Text.ElideMiddle
                                 Layout.fillWidth: true
                             }
@@ -533,7 +550,8 @@ Rectangle {
                                         { key: "SPACE", action: "Lock / unlock automatic changes" },
                                         { key: "F / F11", action: "Toggle fullscreen" },
                                         { key: "CTRL + C", action: "Copy current preset path" },
-                                        { key: "ESC", action: "Leave fullscreen" }
+                                        { key: "ESC", action: "Leave fullscreen" },
+                        { key: "G", action: "Toggle projectM settings" }
                                     ]
 
                                     Rectangle {
@@ -559,7 +577,7 @@ Rectangle {
                                                     text: modelData.key
                                                     color: theme.cyanBright
                                                     font.family: theme.technicalFont
-                                                    font.pixelSize: 7
+                                                    font.pixelSize: 9
                                                     font.weight: Font.Bold
                                                 }
                                             }
@@ -590,7 +608,7 @@ Rectangle {
                           : "Settings saved · launch visuals when ready"
                     color: theme.textMuted
                     font.family: theme.technicalFont
-                    font.pixelSize: 7
+                    font.pixelSize: 9
                     Layout.fillWidth: true
                 }
 

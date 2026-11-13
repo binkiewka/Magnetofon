@@ -1,0 +1,2 @@
+# Unified diff context includes a mandatory space on otherwise blank lines.
+resources/projectm/patches/*.patch -whitespace

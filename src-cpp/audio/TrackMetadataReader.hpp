@@ -3,6 +3,7 @@
 
 #include <QByteArray>
 #include <QString>
+#include <functional>
 
 struct TrackMetadata {
     QString title;
@@ -31,7 +32,8 @@ struct TrackMetadata {
 
 class TrackMetadataReader {
 public:
-    static TrackMetadata read(const QString &filePath);
+    static TrackMetadata read(const QString &filePath,
+                              const std::function<bool()> &shouldCancel = {});
 };
 
 #endif // TRACK_METADATA_READER_HPP

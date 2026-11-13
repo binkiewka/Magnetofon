@@ -43,9 +43,9 @@ HifiPanel {
                 id: presetCombo
                 implicitWidth: 124
                 implicitHeight: 27
-                model: ["PRESET: CUSTOM", "FLAT", "ROCK", "POP", "CLASSICAL", "JAZZ", "BASS BOOST"]
+                model: ["CUSTOM", "FLAT", "ROCK", "POP", "CLASSICAL", "JAZZ", "BASS BOOST"]
                 font.family: theme.technicalFont
-                font.pixelSize: 8
+                font.pixelSize: 10
 
                 contentItem: Text {
                     leftPadding: 9
@@ -89,6 +89,20 @@ HifiPanel {
             }
         }
 
+        RowLayout {
+            Layout.fillWidth: true
+            HifiButton {
+                text: audioPlayer.protectionEnabled ? "DSP PROTECT" : "PROTECT BYPASS"
+                isCompact: true
+                isPowerOn: audioPlayer.protectionEnabled
+                onClicked: audioPlayer.protectionEnabled = !audioPlayer.protectionEnabled
+                ToolTip.visible: hovered
+                ToolTip.text: "Peak protection for EQ and speaker enhancement. Auto with EQ bypassed stays unprocessed."
+            }
+            Item { Layout.fillWidth: true }
+            HifiButton { text: "RESET SOUND"; isCompact: true; onClicked: audioPlayer.resetSoundProfile() }
+        }
+
         SpectrumAnalyzer {
             Layout.fillWidth: true
             Layout.preferredHeight: 28
@@ -118,6 +132,7 @@ HifiPanel {
                     EqSlider {
                         Layout.fillHeight: true
                         value: root.preamp
+                        accessibleLabel: "Preamp"
                         isSecondary: true
                         onValueChangedByUser: function(val) {
                             if (root.eqEnabled) root.userPreampChanged(val)
@@ -127,7 +142,7 @@ HifiPanel {
                         text: "GAIN"
                         color: theme.amber
                         font.family: theme.technicalFont
-                        font.pixelSize: 7
+                        font.pixelSize: 10
                         font.weight: Font.DemiBold
                         Layout.alignment: Qt.AlignHCenter
                     }
@@ -150,6 +165,7 @@ HifiPanel {
                         EqSlider {
                             Layout.alignment: Qt.AlignHCenter
                             Layout.fillHeight: true
+                            accessibleLabel: modelData + " Hz equalizer"
                             value: index < root.eqBands.length ? root.eqBands[index] : 0.0
                             onValueChangedByUser: function(val) {
                                 if (root.eqEnabled) root.userBandChanged(index, val)
@@ -159,7 +175,7 @@ HifiPanel {
                             text: modelData
                             color: theme.textMuted
                             font.family: theme.technicalFont
-                            font.pixelSize: 7
+                            font.pixelSize: 10
                             font.weight: Font.DemiBold
                             Layout.alignment: Qt.AlignHCenter
                         }

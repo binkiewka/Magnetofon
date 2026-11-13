@@ -6,6 +6,12 @@
 #include "PresetPackDownloader.hpp"
 #include "TrackMetadataReader.hpp"
 #include "VisualizerLauncher.hpp"
+#include "VuMeterItem.hpp"
+#include <QQmlApplicationEngine>
+#include <QQmlContext>
+#include <QQuickWindow>
+#include <QQuickItem>
+#include <QQuickStyle>
 
 #include <QDataStream>
 #include <QDir>
@@ -17,6 +23,7 @@
 #include <QUrl>
 
 #include <cmath>
+#include <limits>
 
 class AudioPlayerIntegrationTest : public QObject {
     Q_OBJECT
@@ -93,6 +100,267 @@ private:
     }
 
 private slots:
+    void init()
+    {
+        QSettings().clear(); // Each scenario owns a fresh profile; persistence is tested within a scenario.
+    }
+
+    void missingSelectionStopsOldIdentityAndCanRetry()
+    {
+        PlaylistModel playlist;
+        AudioPlayer player;
+        player.setPlaylist(&playlist);
+        const auto first = createTone("missing-first.wav", 220, 330, 3);
+        const auto second = createTone("missing-second.wav", 440, 550, 3);
+        playlist.addFiles({QUrl::fromLocalFile(first), QUrl::fromLocalFile(second)});
+        QTRY_VERIFY_WITH_TIMEOUT(player.isPlaying(), 3000);
+        QVERIFY(QFile::remove(second));
+        playlist.setCurrentIndex(1);
+        QTRY_VERIFY_WITH_TIMEOUT(!player.playbackError().isEmpty(), 3000);
+        QVERIFY(!player.isPlaying());
+        QVERIFY(!player.hasLoadedMedia());
+        QVERIFY(player.currentFile().isEmpty());
+        QCOMPARE(playlist.currentIndex(), 1);
+        QVERIFY(QFile::copy(first, second));
+        player.retry();
+        QTRY_VERIFY_WITH_TIMEOUT(player.isPlaying(), 3000);
+        QCOMPARE(player.currentFile(), second);
+        QVERIFY(player.playbackError().isEmpty());
+        player.stop();
+    }
+
+    void corruptMediaShowsErrorAndStopsLoading()
+    {
+        QFile broken(m_tempDir.filePath("corrupt.wav"));
+        QVERIFY(broken.open(QIODevice::WriteOnly));
+        broken.write("This is not a media stream");
+        broken.close();
+        AudioPlayer player;
+        QVERIFY(player.load(broken.fileName()));
+        player.play();
+        QTRY_VERIFY_WITH_TIMEOUT(!player.playbackError().isEmpty(), 3000);
+        QVERIFY(!player.loading());
+        QVERIFY(!player.hasLoadedMedia());
+        QVERIFY(!player.isPlaying());
+    }
+
+    void selectedLoadedRowResumesAndStoppedRowRestarts()
+    {
+        PlaylistModel playlist;
+        AudioPlayer player;
+        player.setPlaylist(&playlist);
+        const auto file = createTone("reactivate.wav", 220, 330, 3);
+        playlist.addFile(file);
+        QTRY_VERIFY_WITH_TIMEOUT(player.isPlaying(), 3000);
+        QTest::qWait(200);
+        player.pause();
+        const double paused = player.position();
+        playlist.trackSelected(file); // The model's explicit activateTrack emits even for the same index.
+        QTRY_VERIFY_WITH_TIMEOUT(player.isPlaying(), 3000);
+        QVERIFY(player.position() >= paused - 0.05);
+        player.stop();
+        QVERIFY(!player.hasLoadedMedia());
+        playlist.trackSelected(file);
+        QTRY_VERIFY_WITH_TIMEOUT(player.isPlaying(), 3000);
+        QCOMPARE(player.currentFile(), file);
+        player.stop();
+    }
+
+    void rapidLoadReplacementAndStopRetireOldEvents()
+    {
+        AudioPlayer player;
+        const auto first = createTone("rapid-first.wav", 220, 330, 3);
+        const auto last = createTone("rapid-last.wav", 440, 550, 3);
+        QFile corrupt(m_tempDir.filePath("rapid-corrupt.wav"));
+        QVERIFY(corrupt.open(QIODevice::WriteOnly)); corrupt.write("bad media"); corrupt.close();
+        QVERIFY(player.load(first)); player.play();
+        QVERIFY(player.load(corrupt.fileName())); player.play();
+        QVERIFY(player.load(last)); player.play();
+        QTRY_VERIFY_WITH_TIMEOUT(player.hasLoadedMedia() && player.isPlaying(), 3000);
+        QCOMPARE(player.currentFile(), last);
+        QVERIFY(player.playbackError().isEmpty());
+        QTest::qWait(150);
+        QCOMPARE(player.currentFile(), last);
+        player.stop();
+        QTest::qWait(150);
+        QVERIFY(!player.isPlaying());
+        QVERIFY(!player.hasLoadedMedia());
+        QVERIFY(!player.loading());
+    }
+
+    void retiredNativeTerminalEventCannotCancelNewLoad_data()
+    {
+        QTest::addColumn<QString>("terminal");
+        QTest::newRow("old-eof-new-path") << QString("EOF");
+        QTest::newRow("old-eof-same-path-reload") << QString("SAME");
+        QTest::newRow("old-error-new-path") << QString("ERROR");
+        QTest::newRow("stop-then-new-load") << QString("STOP");
+    }
+
+    void retiredNativeTerminalEventCannotCancelNewLoad()
+    {
+        QFETCH(QString, terminal);
+        AudioPlayer player;
+        player.setRepeatMode("OFF");
+        const auto first = createTone("retired-native.wav", 220, 330, 0.35);
+        QVERIFY(player.load(first));
+        player.play();
+        QTRY_VERIFY_WITH_TIMEOUT(player.isPlaying(), 3000);
+        QSignalSpy finished(&player, &AudioPlayer::trackEnded);
+        if (terminal == "ERROR") {
+            QFile bad(m_tempDir.filePath("retired-error.wav"));
+            QVERIFY(bad.open(QIODevice::WriteOnly));
+            bad.write("not media");
+            bad.close();
+            QVERIFY(player.load(bad.fileName()));
+            player.play();
+            QThread::msleep(300); // Queue native ERROR without pumping Qt.
+        } else if (terminal == "STOP") {
+            player.stop();
+        } else {
+            QThread::msleep(900); // Queue native EOF before selecting another song.
+        }
+        const auto requested = createTone(terminal == "SAME" ? "retired-native.wav" : "accepted-native.wav",
+                                          440, 550, 4);
+        QVERIFY(player.load(requested));
+        player.play();
+        QTRY_VERIFY_WITH_TIMEOUT(player.hasLoadedMedia() && player.isPlaying(), 3000);
+        QTest::qWait(250);
+        QCOMPARE(player.currentFile(), requested);
+        QVERIFY(player.hasLoadedMedia());
+        QVERIFY(player.isPlaying());
+        QVERIFY(!player.loading());
+        QVERIFY(player.playbackError().isEmpty());
+        QCOMPARE(finished.count(), 0); // A retired terminal event is not an album advance.
+        player.stop();
+    }
+
+    void gaplessErrorIdentifiesFailedEntryAndSkipIsExplicit()
+    {
+        PlaylistModel playlist;
+        AudioPlayer player;
+        player.setPlaylist(&playlist);
+        player.setGaplessEnabled(true);
+        player.setRepeatMode("OFF");
+        const auto first = createTone("error-album-first.wav", 220, 330, 0.6);
+        QFile bad(m_tempDir.filePath("error-album-broken.wav"));
+        QVERIFY(bad.open(QIODevice::WriteOnly));
+        bad.write("not an audio stream");
+        bad.close();
+        const auto third = createTone("error-album-third.wav", 440, 550, 4);
+        playlist.addFiles({QUrl::fromLocalFile(first), QUrl::fromLocalFile(bad.fileName()),
+                           QUrl::fromLocalFile(third)});
+        QTRY_VERIFY_WITH_TIMEOUT(!player.playbackError().isEmpty(), 3000);
+        QCOMPARE(playlist.currentIndex(), 1);
+        QCOMPARE(player.currentFile(), bad.fileName());
+        QVERIFY(player.playbackError().contains("error-album-broken.wav"));
+        QVERIFY(!player.playbackError().contains("error-album-first.wav"));
+        QTest::qWait(150);
+        QVERIFY(!player.isPlaying());
+        QVERIFY(!player.loading());
+        player.retry();
+        QTRY_VERIFY_WITH_TIMEOUT(!player.playbackError().isEmpty() && !player.loading(), 3000);
+        QCOMPARE(playlist.currentIndex(), 1);
+        QCOMPARE(player.currentFile(), bad.fileName());
+        player.next();
+        QTRY_VERIFY_WITH_TIMEOUT(player.isPlaying(), 3000);
+        QCOMPARE(playlist.currentIndex(), 2);
+        QCOMPARE(player.currentFile(), third);
+        QVERIFY(player.playbackError().isEmpty());
+        player.stop();
+        player.setGaplessEnabled(false);
+    }
+
+    void soundProfilePersistsButStartupVolumeDoesNot()
+    {
+        const QVariantList bands{1,2,3,4,5,6,5,4,3,2};
+        {
+            AudioPlayer player;
+            player.setSurroundMode("SURROUND");
+            player.setEqEnabled(true);
+            player.setPreamp(-7);
+            player.setEqBands(bands);
+            player.setRepeatMode("ALL");
+            player.setProtectionEnabled(false);
+            player.setVolume(0.25);
+        }
+        AudioPlayer restored;
+        QCOMPARE(restored.surroundMode(), QString("SURROUND"));
+        QVERIFY(restored.eqEnabled());
+        QCOMPARE(restored.preamp(), -7.0);
+        QCOMPARE(restored.eqBands(), bands);
+        QCOMPARE(restored.repeatMode(), QString("ALL"));
+        QVERIFY(!restored.protectionEnabled());
+        QCOMPARE(restored.volume(), 0.5);
+        QVERIFY(std::abs(restored.volumeDb() + 18.0617997) < 0.00001);
+        restored.setSurroundMode("INVALID");
+        QCOMPARE(restored.surroundMode(), QString("SURROUND"));
+        restored.setPreamp(std::numeric_limits<double>::quiet_NaN());
+        QCOMPARE(restored.preamp(), -7.0);
+        restored.resetSoundProfile();
+        QCOMPARE(restored.surroundMode(), QString("AUTO"));
+        QVERIFY(!restored.eqEnabled());
+        QVERIFY(restored.protectionEnabled());
+    }
+
+    void restoredMediaStaysPausedAtPosition()
+    {
+        AudioPlayer player;
+        const auto file = createTone("restored.wav", 220, 330, 3);
+        QVERIFY(player.restorePaused(file, 1.25));
+        QTRY_VERIFY_WITH_TIMEOUT(player.hasLoadedMedia(), 3000);
+        QTRY_VERIFY_WITH_TIMEOUT(player.position() > 1.1, 3000);
+        QVERIFY(!player.isPlaying());
+        QVERIFY(!player.loading());
+        player.play();
+        QTRY_VERIFY(player.isPlaying());
+        QVERIFY(player.position() >= 1.1);
+    }
+
+    void repeatIsIndependentOfGapless_data()
+    {
+        QTest::addColumn<bool>("gapless");
+        QTest::addColumn<QString>("repeat");
+        for (bool gapless : {false, true})
+            for (const QString &repeat : {QString("OFF"), QString("ALL"), QString("ONE")})
+                QTest::newRow(qPrintable(QString("%1-%2").arg(gapless ? "gapless" : "normal", repeat))) << gapless << repeat;
+    }
+
+    void repeatIsIndependentOfGapless()
+    {
+        QFETCH(bool, gapless);
+        QFETCH(QString, repeat);
+        PlaylistModel playlist;
+        AudioPlayer player;
+        player.setPlaylist(&playlist);
+        player.setGaplessEnabled(gapless);
+        player.setRepeatMode(repeat);
+        QSignalSpy finished(&player, &AudioPlayer::trackEnded);
+        int changes = 0;
+        connect(&playlist, &PlaylistModel::currentIndexChanged, &playlist, [&] { ++changes; });
+        playlist.addFiles({QUrl::fromLocalFile(createTone("repeat-a.wav",220,330,0.6)),
+                           QUrl::fromLocalFile(createTone("repeat-b.wav",440,550,0.6))});
+        QCOMPARE(playlist.count(), 2);
+        QCOMPARE(playlist.currentIndex(), 0);
+        QTRY_VERIFY_WITH_TIMEOUT(player.isPlaying(), 3000);
+        if (repeat == "OFF") {
+            QTRY_COMPARE_WITH_TIMEOUT(playlist.currentIndex(), 1, 3000);
+            // A normal queue briefly stops while selecting the next file. Wait
+            // for the album's final EOF, not that intermediate loading state.
+            QTRY_COMPARE_WITH_TIMEOUT(finished.count(), gapless ? 1 : 2, 4000);
+            QVERIFY(!player.isPlaying());
+            QTest::qWait(300);
+            QCOMPARE(playlist.currentIndex(), 1);
+            QVERIFY(!player.isPlaying());
+        } else {
+            QTest::qWait(2300);
+            QVERIFY(player.isPlaying());
+            if (repeat == "ONE") QCOMPARE(playlist.currentIndex(), 0);
+            else QVERIFY(changes >= 4); // More than one album cycle; not a one-off wrap.
+        }
+        player.stop();
+    }
+
     void initTestCase()
     {
         std::setlocale(LC_NUMERIC, "C");
@@ -626,12 +894,12 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(player.hasLoadedMedia(), 3000);
         QTRY_VERIFY_WITH_TIMEOUT(player.isPlaying(), 3000);
         QTRY_VERIFY_WITH_TIMEOUT(player.position() > 0.1, 3000);
-        QTRY_VERIFY_WITH_TIMEOUT(player.leftMeter() > 0.02, 3000);
-        QTRY_VERIFY_WITH_TIMEOUT(player.rightMeter() > 0.02, 3000);
-
-        bool spectrumActive = false;
-        for (const QVariant &band : player.spectrum()) spectrumActive |= band.toDouble() > 0.02;
-        QVERIFY(spectrumActive);
+        // Null-output test builds deliberately cannot capture audio. Unavailable
+        // measurement must remain truthful, not make up readings to pass this test.
+        QVERIFY(!player.analysisAvailable());
+        QCOMPARE(player.leftMeter(), 0.0);
+        QCOMPARE(player.rightMeter(), 0.0);
+        for (const QVariant &band : player.spectrum()) QCOMPARE(band.toDouble(), 0.0);
 
         player.pause();
         QTRY_VERIFY_WITH_TIMEOUT(!player.isPlaying(), 1000);
@@ -676,6 +944,105 @@ private slots:
         playlist.clear();
         QTRY_VERIFY_WITH_TIMEOUT(!player.isPlaying(), 1000);
         QVERIFY(!player.hasLoadedMedia());
+    }
+
+    void clearedOrRemovedLastTrackCannotBeReplayed()
+    {
+        for (bool removeLast : {false, true}) {
+            PlaylistModel playlist;
+            AudioPlayer player;
+            player.setPlaylist(&playlist);
+            playlist.addFile(createTone(removeLast ? "remove-last.wav" : "clear-play.wav", 0, 0, 4));
+            QTRY_VERIFY_WITH_TIMEOUT(player.isPlaying(), 2000);
+            if (removeLast) playlist.removeTrack(0); else playlist.clear();
+            QCOMPARE(playlist.count(), 0);
+            QCOMPARE(player.currentFile(), QString());
+            QCOMPARE(player.duration(), 0.0);
+            player.togglePlayPause();
+            QTest::qWait(250);
+            QVERIFY(!player.isPlaying());
+            QVERIFY(!player.hasLoadedMedia());
+            QCOMPARE(player.currentFile(), QString());
+            QCOMPARE(player.leftMeter(), 0.0);
+        }
+    }
+
+    void clearBeforeQueuedSelectionDoesNotResurrectMedia()
+    {
+        PlaylistModel playlist;
+        AudioPlayer player;
+        player.setPlaylist(&playlist);
+        playlist.addFile(createTone("pending-clear.wav", 240, 960, 2));
+        playlist.clear();
+        player.play();
+        QTest::qWait(200);
+        QVERIFY(!player.hasLoadedMedia());
+        QVERIFY(!player.isPlaying());
+        QCOMPARE(player.currentFile(), QString());
+    }
+
+    void realQmlConsoleLoadsAndShowsRuntimeState()
+    {
+        qmlRegisterType<VuMeterItem>("Magnetofon", 1, 0, "VuMeterItem");
+        QQuickStyle::setStyle("Basic");
+        AudioPlayer player;
+        PlaylistModel playlist;
+        PresetPackDownloader packs;
+        VisualizerLauncher visuals(nullptr, false);
+        player.setPlaylist(&playlist);
+        QStringList problems;
+        QQmlApplicationEngine engine;
+        connect(&engine, &QQmlEngine::warnings, &engine, [&](const QList<QQmlError> &errors) {
+            for (const auto &error : errors) problems.append(error.toString());
+        });
+        engine.rootContext()->setContextProperty("audioPlayer", &player);
+        engine.rootContext()->setContextProperty("playlistModel", &playlist);
+        engine.rootContext()->setContextProperty("presetPackDownloader", &packs);
+        engine.rootContext()->setContextProperty("visualizerLauncher", &visuals);
+        engine.load(QUrl("qrc:/ui/qml/main.qml"));
+        QCOMPARE(engine.rootObjects().size(), 1);
+        auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        QVERIFY(window);
+        auto *controls = window->findChild<QObject *>("visualsControlPanel");
+        QVERIFY(controls);
+        controls->setProperty("visible", true);
+        auto *launch = controls->findChild<QObject *>("launchVisualsButton");
+        QVERIFY(launch);
+        QCOMPARE(launch->property("enabled").toBool(), visuals.runtimeAvailable());
+        QTest::qWait(100);
+        QVERIFY2(problems.isEmpty(), qPrintable(problems.join('\n')));
+        const QString captures = qEnvironmentVariable("MAGNETOFON_TEST_SCREENSHOT_DIR");
+        if (!captures.isEmpty()) {
+            QDir().mkpath(captures);
+            const QImage controlsImage = window->grabWindow();
+            QVERIFY(!controlsImage.isNull());
+            QVERIFY(controlsImage.save(QDir(captures).filePath("visual-controls.png")));
+            controls->setProperty("visible", false);
+            QTest::qWait(60);
+            const QImage consoleImage = window->grabWindow();
+            QVERIFY(!consoleImage.isNull());
+            QVERIFY(consoleImage.save(QDir(captures).filePath("console.png")));
+        }
+        // Qt 6.4's software render loop retains image textures if their items
+        // are destroyed directly. A standalone Window+Image reproduces it without
+        // app code. Retire image sources while renderable before fixture teardown;
+        // no sanitizer suppression or production behavior change is needed.
+        for (auto *item : window->findChildren<QQuickItem *>()) {
+            if (item->inherits("QQuickImageBase")) item->setProperty("source", QUrl());
+        }
+        QTest::qWait(100);
+        // A short-lived offscreen test window needs an event-loop turn to
+        // release software scene-graph textures before the engine is destroyed.
+        window->setPersistentGraphics(false);
+        window->setPersistentSceneGraph(false);
+        window->hide();
+        window->releaseResources();
+        QTest::qWait(100);
+        delete window;
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        engine.collectGarbage();
+        engine.clearComponentCache();
+        QTest::qWait(50);
     }
 
     void visualizerUsesCuratedLibraryAndCompleteLaunchSettings()

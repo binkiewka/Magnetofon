@@ -16,6 +16,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QThread>
+#include <QCommandLineParser>
 
 #include "AudioPlayer.hpp"
 #include "PlaylistModel.hpp"
@@ -82,8 +83,15 @@ int main(int argc, char *argv[])
     app.setOrganizationName("Magnetofon");
     app.setApplicationVersion(QString::fromLatin1(MAGNETOFON_VERSION));
 
+    QCommandLineParser arguments;
+    arguments.setApplicationDescription(QStringLiteral("Magnetofon native hi-fi music and concert-video console"));
+    arguments.addHelpOption();
+    arguments.addVersionOption();
+    arguments.addPositionalArgument(QStringLiteral("media"), QStringLiteral("Local music/video files or folders to append"), QStringLiteral("[media…]"));
+    arguments.process(app);
+
     QStringList incomingPaths;
-    for (const QString &argument : app.arguments().mid(1)) {
+    for (const QString &argument : arguments.positionalArguments()) {
         const QUrl url(argument);
         incomingPaths.append(QFileInfo(url.isLocalFile() ? url.toLocalFile() : argument).absoluteFilePath());
     }
@@ -132,8 +140,6 @@ int main(int argc, char *argv[])
     // are open. AudioPlayer and VisualizerLauncher destructors perform the final
     // synchronous libmpv/process cleanup after the event loop exits.
     QObject::connect(&app, &QCoreApplication::aboutToQuit,
-                     &player, &AudioPlayer::stop);
-    QObject::connect(&app, &QCoreApplication::aboutToQuit,
                      &visualizerLauncher, &VisualizerLauncher::stopVisuals);
 
     QObject::connect(&packDownloader, &PresetPackDownloader::isInstalledChanged,
@@ -141,21 +147,64 @@ int main(int argc, char *argv[])
 
     player.setPlaylist(&playlist);
 
-    for (const QString &path : incomingPaths) playlist.addFile(path);
+    // Restore privately saved listening state without a selection signal or
+    // autoplay. Detailed sound-profile persistence belongs to AudioPlayer.
+    if (playlist.restoreSession() && !playlist.currentFilePath().isEmpty()) {
+        player.restorePaused(playlist.currentFilePath(), playlist.restoredPosition());
+    }
+    QTimer sessionCheckpoint;
+    sessionCheckpoint.setInterval(10000);
+    QObject::connect(&sessionCheckpoint, &QTimer::timeout, &playlist, [&]() {
+        playlist.checkpointSessionPosition(player.position());
+    });
+    sessionCheckpoint.start();
+    // Queue metadata can be large. Do not rewrite it every ten seconds or for
+    // every arriving import batch; debounce structural changes separately.
+    QTimer queueCheckpoint;
+    queueCheckpoint.setSingleShot(true);
+    queueCheckpoint.setInterval(1500);
+    const auto scheduleQueueCheckpoint = [&]() { queueCheckpoint.start(); };
+    QObject::connect(&playlist, &PlaylistModel::countChanged, &queueCheckpoint, scheduleQueueCheckpoint);
+    QObject::connect(&playlist, &QAbstractItemModel::rowsMoved, &queueCheckpoint, scheduleQueueCheckpoint);
+    QObject::connect(&queueCheckpoint, &QTimer::timeout, &playlist, [&]() {
+        if (playlist.importing()) queueCheckpoint.start();
+        else playlist.saveSession(player.position());
+    });
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, &playlist, [&]() {
+        // Stop resets transport position: commit the session before stopping.
+        sessionCheckpoint.stop();
+        queueCheckpoint.stop();
+        playlist.saveSession(player.position());
+        player.stop();
+    });
+
+    QList<QUrl> initialUrls;
+    for (const QString &path : incomingPaths) initialUrls.append(QUrl::fromLocalFile(path));
+    if (!initialUrls.isEmpty()) playlist.importFiles(initialUrls);
+
+    QPointer<QWindow> mainConsoleWindow;
     QObject::connect(&server, &QLocalServer::newConnection, &app, [&]() {
         while (auto *socket = server.nextPendingConnection()) {
             QObject::connect(socket, &QLocalSocket::disconnected, socket, &QObject::deleteLater);
             const auto receive = [&, socket]() {
+                if (socket->bytesAvailable() > 256 * 1024) {
+                    socket->abort();
+                    return;
+                }
                 if (!socket->canReadLine()) return;
-                const auto document = QJsonDocument::fromJson(socket->readLine());
+                const auto document = QJsonDocument::fromJson(socket->readLine(256 * 1024));
                 if (!document.isArray()) { socket->disconnectFromServer(); return; }
-                for (const auto &path : document.array()) playlist.addFile(path.toString());
-                for (QWindow *window : app.topLevelWindows()) {
-                    if (window->title().startsWith("MAGNETOFON")) {
-                        if (window->visibility() == QWindow::Minimized) window->showNormal();
-                        window->raise();
-                        window->requestActivate();
+                QList<QUrl> urls;
+                for (const auto &path : document.array()) {
+                    urls.append(QUrl::fromLocalFile(path.toString()));
+                }
+                playlist.importFiles(urls);
+                if (mainConsoleWindow) {
+                    if (mainConsoleWindow->visibility() == QWindow::Minimized) {
+                        mainConsoleWindow->showNormal();
                     }
+                    mainConsoleWindow->raise();
+                    mainConsoleWindow->requestActivate();
                 }
                 socket->write("OK\n");
                 socket->flush();
@@ -189,6 +238,7 @@ int main(int argc, char *argv[])
 
     for (QObject *rootObject : engine.rootObjects()) {
         if (auto *rootWindow = qobject_cast<QWindow *>(rootObject)) {
+            mainConsoleWindow = rootWindow;
             QTimer::singleShot(0, rootWindow, [rootWindow, appIcon, appIconImage]() {
                 rootWindow->setIcon(QIcon());
                 rootWindow->setIcon(appIcon);

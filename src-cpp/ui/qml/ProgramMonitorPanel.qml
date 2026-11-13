@@ -12,6 +12,7 @@ HifiPanel {
     property string artist: "UNKNOWN ARTIST"
     property string album: "MAGNETOFON SYSTEM"
     property string albumArtist: ""
+    property url fallbackArtworkUrl: "qrc:/resources/icon.png"
     property string artworkUrl: ""
     property string genre: ""
     property string year: ""
@@ -54,7 +55,7 @@ HifiPanel {
                 valueRole: "id"
                 currentIndex: root.audioTrackIndex()
                 font.family: theme.technicalFont
-                font.pixelSize: 7
+                font.pixelSize: 10
                 onActivated: root.audioTrackSelected(currentValue)
 
                 background: Rectangle {
@@ -77,7 +78,7 @@ HifiPanel {
                           ? root.sourceAudioLabel : root.formatLabel
                     color: theme.cyanBright
                     font.family: theme.technicalFont
-                    font.pixelSize: 8
+                    font.pixelSize: 10
                     font.weight: Font.DemiBold
                     font.letterSpacing: 0.8
                 }
@@ -141,7 +142,7 @@ HifiPanel {
                     Image {
                         anchors.fill: parent
                         anchors.margins: 2
-                        source: "qrc:/resources/icon.png"
+                        source: root.fallbackArtworkUrl
                         fillMode: Image.PreserveAspectCrop
                         smooth: true
                         mipmap: true
@@ -177,7 +178,7 @@ HifiPanel {
                         text: root.artist + "  •  " + root.album
                         color: theme.textMuted
                         font.family: theme.technicalFont
-                        font.pixelSize: 8
+                        font.pixelSize: 10
                         font.letterSpacing: 0.45
                         elide: Text.ElideRight
                     }
@@ -187,7 +188,7 @@ HifiPanel {
                         visible: text.length > 0
                         color: "#52717e"
                         font.family: theme.technicalFont
-                        font.pixelSize: 7
+                        font.pixelSize: 10
                         font.letterSpacing: 0.35
                         elide: Text.ElideRight
                     }
@@ -214,7 +215,7 @@ HifiPanel {
                         text: "/ " + formatTime(root.duration)
                         color: "#65747b"
                         font.family: theme.technicalFont
-                        font.pixelSize: 9
+                        font.pixelSize: 11
                         Layout.alignment: Qt.AlignRight
                     }
                 }
@@ -223,9 +224,9 @@ HifiPanel {
 
                 ColumnLayout {
                     spacing: 1
-                    Text { text: root.sampleRateText(); color: theme.cyan; font.family: theme.technicalFont; font.pixelSize: 8; font.weight: Font.Bold; Layout.alignment: Qt.AlignRight }
-                    Text { text: root.bitDepth > 0 ? root.bitDepth + "-BIT" : (root.channels > 0 ? root.channels + " CH" : "—"); color: theme.textMuted; font.family: theme.technicalFont; font.pixelSize: 8; Layout.alignment: Qt.AlignRight }
-                    Text { text: root.bitrate > 0 ? Math.round(root.bitrate / 1000) + " kbps" : (root.codec.length > 0 ? root.codec : "—"); color: theme.amber; font.family: theme.technicalFont; font.pixelSize: 8; Layout.alignment: Qt.AlignRight }
+                    Text { text: root.sampleRateText(); color: theme.cyan; font.family: theme.technicalFont; font.pixelSize: 10; font.weight: Font.Bold; Layout.alignment: Qt.AlignRight }
+                    Text { text: root.bitDepth > 0 ? root.bitDepth + "-BIT" : (root.channels > 0 ? root.channels + " CH" : "—"); color: theme.textMuted; font.family: theme.technicalFont; font.pixelSize: 10; Layout.alignment: Qt.AlignRight }
+                    Text { text: root.bitrate > 0 ? Math.round(root.bitrate / 1000) + " kbps" : (root.codec.length > 0 ? root.codec : "—"); color: theme.amber; font.family: theme.technicalFont; font.pixelSize: 10; Layout.alignment: Qt.AlignRight }
                 }
             }
 
@@ -243,11 +244,24 @@ HifiPanel {
 
         Rectangle {
             id: progressBar
+            objectName: "seekBar"
             Layout.fillWidth: true
-            height: 10
+            height: 18
+            activeFocusOnTab: true
+            Accessible.role: Accessible.Slider
+            Accessible.name: "Playback position"
+            Accessible.description: root.formatTime(root.position) + " of " + root.formatTime(root.duration)
+            Accessible.onIncreaseAction: root.seekRequested(Math.min(root.duration, root.position + 5))
+            Accessible.onDecreaseAction: root.seekRequested(Math.max(0, root.position - 5))
+            Keys.onRightPressed: root.seekRequested(Math.min(root.duration, root.position + 5))
+            Keys.onLeftPressed: root.seekRequested(Math.max(0, root.position - 5))
+            Keys.onPressed: function(event) {
+                if (event.key === Qt.Key_Home) { root.seekRequested(0); event.accepted = true }
+                else if (event.key === Qt.Key_End) { root.seekRequested(root.duration); event.accepted = true }
+            }
             radius: 3
             color: "#030608"
-            border.color: "#203541"
+            border.color: activeFocus ? theme.cyan : "#203541"
 
             Row {
                 anchors.fill: parent
@@ -268,6 +282,7 @@ HifiPanel {
             MouseArea {
                 anchors.fill: parent
                 onClicked: function(mouse) {
+                    progressBar.forceActiveFocus()
                     if (root.duration > 0) root.seekRequested((mouse.x / width) * root.duration)
                 }
             }

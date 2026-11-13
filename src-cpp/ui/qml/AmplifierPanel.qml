@@ -37,7 +37,7 @@ HifiPanel {
                 spacing: 12
 
                 Item {
-                    Layout.preferredWidth: 170
+                    Layout.preferredWidth: root.width < 470 ? 130 : 170
                     Layout.fillHeight: true
 
                     Knob {
@@ -47,7 +47,7 @@ HifiPanel {
                         max: 1.0
                         size: 68
                         label: "MASTER VOLUME"
-                        displayValue: root.volume === 0 ? "−∞ dB" : Math.round((root.volume - 1) * 60) + " dB"
+                        displayValue: root.volume === 0 ? "−∞ dB" : audioPlayer.volumeDb.toFixed(1) + " dB"
                         onValueChangedByUser: function(val) { root.volumeChangedByUser(val) }
                     }
                 }
@@ -76,7 +76,7 @@ HifiPanel {
                         text: "PLAYBACK TOPOLOGY"
                         color: theme.textMuted
                         font.family: theme.technicalFont
-                        font.pixelSize: 8
+                        font.pixelSize: 10
                         font.weight: Font.DemiBold
                         font.letterSpacing: 1.25
                         Layout.alignment: Qt.AlignHCenter
@@ -87,7 +87,7 @@ HifiPanel {
                         spacing: 5
 
                             Repeater {
-                                model: ["AUTO", "2.1", "SURROUND"]
+                                model: ["AUTO", "STEREO", "2.1", "SURROUND"]
                                 HifiButton {
                                     text: modelData
                                     Layout.fillWidth: true
@@ -108,10 +108,10 @@ HifiPanel {
                             opacity: 0.9
                         }
                         Text {
-                            text: "24-BIT DIGITAL ATTENUATION"
+                            text: "DIGITAL SIGNAL LEVEL"
                             color: theme.textMuted
                             font.family: theme.technicalFont
-                            font.pixelSize: 7
+                            font.pixelSize: 10
                             font.letterSpacing: 0.8
                         }
                     }

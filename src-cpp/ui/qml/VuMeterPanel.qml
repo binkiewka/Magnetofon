@@ -8,6 +8,8 @@ HifiPanel {
     implicitHeight: 166
     title: "TWIN SIGNAL LEVEL MONITOR"
 
+    property bool analysisAvailable: false
+    property bool playing: false
     property double leftLevel: 0.0
     property double rightLevel: 0.0
 
@@ -20,6 +22,11 @@ HifiPanel {
             Layout.fillWidth: true
             title: "TWIN SIGNAL LEVEL MONITOR"
             iconText: "⌁"
+            Text {
+                text: root.analysisAvailable ? "LIVE" : (root.playing ? "METER UNAVAILABLE" : "IDLE")
+                color: root.analysisAvailable ? "#55dca8" : "#8ca0a5"
+                font.pixelSize: 10
+            }
         }
 
         Rectangle {

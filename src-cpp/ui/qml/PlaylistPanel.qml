@@ -9,6 +9,30 @@ HifiPanel {
     title: "PROGRAM MEMORY"
 
     property bool isExpanded: false
+    readonly property bool searchHasFocus: searchField.activeFocus
+    readonly property bool listHasFocus: listView.activeFocus
+    function focusSearch() { searchField.forceActiveFocus(); searchField.selectAll() }
+    function activate(index) {
+        if (typeof playlistModel.activateTrack === "function") playlistModel.activateTrack(index)
+        else playlistModel.currentIndex = index
+    }
+    function sourceIndex(index) {
+        return typeof playlistModel.trackIndexForVisible === "function" ? playlistModel.trackIndexForVisible(index) : index
+    }
+    function visibleIndex(index) {
+        return typeof playlistModel.visibleIndexForTrack === "function" ? playlistModel.visibleIndexForTrack(index) : index
+    }
+    function revealCurrent() {
+        searchField.clear()
+        Qt.callLater(function() {
+            listView.currentIndex = root.visibleIndex(playlistModel.currentIndex)
+            listView.positionViewAtIndex(listView.currentIndex, ListView.Contain)
+            listView.forceActiveFocus()
+        })
+    }
+    readonly property bool importing: typeof playlistModel.importing !== "undefined" && playlistModel.importing
+    readonly property string operationError: typeof playlistModel.operationError !== "undefined" ? playlistModel.operationError : ""
+    readonly property string importStatus: typeof playlistModel.importStatus !== "undefined" ? playlistModel.importStatus : ""
     signal fileOpenRequested()
     signal folderOpenRequested()
     signal playlistLoadRequested()
@@ -27,11 +51,54 @@ HifiPanel {
             title: "PROGRAM MEMORY"
             iconText: "▥"
 
-            HifiButton { text: "ADD"; iconSymbol: "+"; isCompact: true; onClicked: root.fileOpenRequested() }
-            HifiButton { text: "DISCOVER"; iconSymbol: "⌕"; isCompact: true; onClicked: root.folderOpenRequested() }
+            HifiButton { text: "ADD"; iconSymbol: "+"; isCompact: true; enabled: !root.importing; onClicked: root.fileOpenRequested() }
+            HifiButton { text: "DISCOVER"; iconSymbol: "⌕"; isCompact: true; enabled: !root.importing; onClicked: root.folderOpenRequested() }
             HifiButton { text: "CLEAR"; isStop: true; isCompact: true; onClicked: root.clearRequested() }
         }
 
+        RowLayout {
+            Layout.fillWidth: true
+            visible: root.importing || root.operationError.length > 0 || root.importStatus.length > 0
+            spacing: 6
+            BusyIndicator { running: root.importing; visible: running; implicitWidth: 18; implicitHeight: 18 }
+            Text {
+                Layout.fillWidth: true
+                text: root.operationError.length > 0 ? root.operationError : root.importStatus
+                color: root.operationError.length > 0 ? theme.red : theme.textSoft
+                font.family: theme.technicalFont
+                font.pixelSize: 10
+                elide: Text.ElideRight
+                HoverHandler { id: statusHover }
+                ToolTip.visible: statusHover.hovered
+                ToolTip.text: text
+            }
+            HifiButton {
+                text: "CANCEL"
+                isCompact: true
+                visible: root.importing
+                onClicked: playlistModel.cancelImport()
+            }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            TextField {
+                id: searchField
+                objectName: "queueSearch"
+                Layout.fillWidth: true
+                implicitHeight: 30
+                placeholderText: "Find title, artist, album or filename…"
+                font.pixelSize: 12
+                color: theme.text
+                selectByMouse: true
+                Accessible.name: "Search queue"
+                background: Rectangle { color: "#080e11"; radius: 4; border.color: searchField.activeFocus ? theme.cyan : "#35443f" }
+                onTextChanged: if (typeof playlistModel.searchText !== "undefined") playlistModel.searchText = text
+                Keys.onEscapePressed: { clear(); listView.forceActiveFocus() }
+                Keys.onDownPressed: { listView.currentIndex = 0; listView.forceActiveFocus() }
+            }
+            HifiButton { text: "PLAYING"; isCompact: true; onClicked: root.revealCurrent(); enabled: playlistModel.currentIndex >= 0; ToolTip.visible: hovered; ToolTip.text: "Reveal playing track · Ctrl+F searches" }
+        }
 
         Rectangle {
             id: playlistBay
@@ -48,11 +115,11 @@ HifiPanel {
                 z: 40
 
                 onEntered: function(drag) {
-                    drag.accepted = drag.hasUrls
+                    drag.accepted = drag.hasUrls && !root.importing
                 }
                 onDropped: function(drop) {
-                    if (!drop.hasUrls) return
-                    playlistModel.addFiles(drop.urls)
+                    if (!drop.hasUrls || root.importing) return
+                    playlistModel.importFiles(drop.urls)
                     drop.acceptProposedAction()
                 }
             }
@@ -83,7 +150,7 @@ HifiPanel {
                         text: "DROP MUSIC, VIDEO, OR A FOLDER"
                         color: theme.cyanBright
                         font.family: theme.technicalFont
-                        font.pixelSize: 9
+                        font.pixelSize: 11
                         font.weight: Font.DemiBold
                         font.letterSpacing: 1.5
                     }
@@ -136,7 +203,7 @@ HifiPanel {
                         text: "PROGRAM BUFFER EMPTY"
                         color: "#3c5660"
                         font.family: theme.technicalFont
-                        font.pixelSize: 9
+                        font.pixelSize: 11
                         font.letterSpacing: 1.8
                     }
                     Text {
@@ -144,7 +211,7 @@ HifiPanel {
                         text: "ADD MEDIA OR DISCOVER A LIBRARY"
                         color: "#293c43"
                         font.family: theme.technicalFont
-                        font.pixelSize: 7
+                        font.pixelSize: 10
                         font.letterSpacing: 0.7
                     }
                 }
@@ -159,30 +226,44 @@ HifiPanel {
                 boundsBehavior: Flickable.StopAtBounds
 
                 function moveSelected(delta) {
-                    var from = currentIndex
+                    var from = root.sourceIndex(currentIndex)
                     var to = from + delta
                     if (from < 0 || to < 0 || to >= playlistModel.count) return
                     playlistModel.moveTrack(from, to)
-                    currentIndex = to
-                    positionViewAtIndex(to, ListView.Contain)
+                    currentIndex = root.visibleIndex(to)
+                    positionViewAtIndex(currentIndex, ListView.Contain)
                     forceActiveFocus()
                 }
-                Keys.onUpPressed: function(event) { moveSelected(-1); event.accepted = true }
-                Keys.onDownPressed: function(event) { moveSelected(1); event.accepted = true }
+                Keys.onUpPressed: function(event) {
+                    if (event.modifiers & Qt.ControlModifier) moveSelected(-1)
+                    else { currentIndex = Math.max(0, currentIndex - 1); positionViewAtIndex(currentIndex, ListView.Contain) }
+                    event.accepted = true
+                }
+                Keys.onDownPressed: function(event) {
+                    if (event.modifiers & Qt.ControlModifier) moveSelected(1)
+                    else { currentIndex = Math.min(count - 1, currentIndex + 1); positionViewAtIndex(currentIndex, ListView.Contain) }
+                    event.accepted = true
+                }
                 Keys.onReturnPressed: function(event) {
-                    if (currentIndex >= 0) playlistModel.currentIndex = currentIndex
+                    if (currentIndex >= 0) root.activate(root.sourceIndex(currentIndex))
                     event.accepted = true
                 }
                 anchors.fill: parent
                 anchors.margins: 4
                 clip: true
                 spacing: 2
-                model: playlistModel
+                model: typeof playlistModel.filteredModel !== "undefined" ? playlistModel.filteredModel : playlistModel
                 visible: playlistModel.count > 0
 
                 delegate: Rectangle {
+                    readonly property int trackIndex: typeof model.sourceIndex !== "undefined" ? model.sourceIndex : index
+                    Accessible.role: Accessible.ListItem
+                    Accessible.name: model.title + ", " + model.artist
+                    ToolTip.visible: delegateHover.hovered
+                    ToolTip.delay: 700
+                    ToolTip.text: model.title + "\n" + model.artist + (typeof model.filePath !== "undefined" ? "\n" + model.filePath : "")
                     width: listView.width
-                    height: 40
+                    height: 46
                     radius: 4
                     color: index === listView.currentIndex ? "#122f3a"
                                                                    : (delegateHover.hovered ? "#17201f" : "#0b1011")
@@ -196,7 +277,7 @@ HifiPanel {
                             listView.currentIndex = index
                             listView.forceActiveFocus()
                         }
-                        onDoubleClicked: playlistModel.currentIndex = index
+                        onDoubleClicked: root.activate(trackIndex)
                     }
 
                     RowLayout {
@@ -207,14 +288,14 @@ HifiPanel {
 
                         Rectangle {
                             width: 24; height: 24; radius: 4
-                            color: index === playlistModel.currentIndex ? "#0c4e6b" : "#121b1d"
-                            border.color: index === playlistModel.currentIndex ? theme.cyan : "#293b3a"
+                            color: trackIndex === playlistModel.currentIndex ? "#0c4e6b" : "#121b1d"
+                            border.color: trackIndex === playlistModel.currentIndex ? theme.cyan : "#293b3a"
                             Text {
                                 anchors.centerIn: parent
-                                text: (index + 1 < 10 ? "0" : "") + (index + 1)
-                                color: index === playlistModel.currentIndex ? theme.cyanBright : theme.textMuted
+                                text: (trackIndex + 1 < 10 ? "0" : "") + (trackIndex + 1)
+                                color: trackIndex === playlistModel.currentIndex ? theme.cyanBright : theme.textMuted
                                 font.family: theme.technicalFont
-                                font.pixelSize: 8
+                                font.pixelSize: 10
                                 font.weight: Font.Bold
                             }
                         }
@@ -225,10 +306,10 @@ HifiPanel {
                             Text {
                                 Layout.fillWidth: true
                                 text: model.title
-                                color: index === playlistModel.currentIndex ? theme.text : theme.textSoft
+                                color: trackIndex === playlistModel.currentIndex ? theme.text : theme.textSoft
                                 font.family: theme.uiFont
-                                font.weight: index === playlistModel.currentIndex ? Font.DemiBold : Font.Normal
-                                font.pixelSize: 10
+                                font.weight: trackIndex === playlistModel.currentIndex ? Font.DemiBold : Font.Normal
+                                font.pixelSize: 12
                                 elide: Text.ElideRight
                             }
                             Text {
@@ -236,7 +317,7 @@ HifiPanel {
                                 text: model.artist + (model.album.length > 0 && model.album !== "Unknown Album" ? "  •  " + model.album : "")
                                 color: theme.textMuted
                                 font.family: theme.technicalFont
-                                font.pixelSize: 7
+                                font.pixelSize: 10
                                 elide: Text.ElideRight
                             }
                         }
@@ -245,9 +326,10 @@ HifiPanel {
                             objectName: "moveUp" + index
                             text: "↑"
                             isCompact: true
-                            implicitWidth: 25; implicitHeight: 22
+                            implicitWidth: 28; implicitHeight: 28
+                            Accessible.name: text === "↑" ? "Move track up" : "Move track down"
                             focusPolicy: Qt.NoFocus
-                            enabled: index > 0
+                            enabled: trackIndex > 0
                             onClicked: {
                                 listView.currentIndex = index
                                 listView.moveSelected(-1)
@@ -259,9 +341,10 @@ HifiPanel {
                             objectName: "moveDown" + index
                             text: "↓"
                             isCompact: true
-                            implicitWidth: 25; implicitHeight: 22
+                            implicitWidth: 28; implicitHeight: 28
+                            Accessible.name: text === "↑" ? "Move track up" : "Move track down"
                             focusPolicy: Qt.NoFocus
-                            enabled: index < playlistModel.count - 1
+                            enabled: trackIndex < playlistModel.count - 1
                             onClicked: {
                                 listView.currentIndex = index
                                 listView.moveSelected(1)
@@ -274,7 +357,8 @@ HifiPanel {
                             implicitHeight: 25
                             text: "×"
                             hoverEnabled: true
-                            onClicked: playlistModel.removeTrack(index)
+                            Accessible.name: "Remove " + model.title
+                            onClicked: playlistModel.removeTrack(trackIndex)
                             contentItem: Text {
                                 text: parent.text
                                 color: parent.hovered ? theme.red : theme.textMuted
@@ -299,10 +383,10 @@ HifiPanel {
         RowLayout {
             Layout.fillWidth: true
             Text {
-                text: "COUNT  " + playlistModel.count.toString().padStart(2, "0") + "  TRACKS"
+                text: searchField.text.length > 0 ? listView.count + " / " + playlistModel.count + " TRACKS" : playlistModel.count + " TRACKS"
                 color: theme.textMuted
                 font.family: theme.technicalFont
-                font.pixelSize: 8
+                font.pixelSize: 10
                 font.letterSpacing: 0.8
             }
             Item { Layout.fillWidth: true }
@@ -310,6 +394,7 @@ HifiPanel {
                 text: "LOAD"
                 iconSymbol: "↥"
                 isCompact: true
+                enabled: !root.importing
                 onClicked: root.playlistLoadRequested()
             }
             HifiButton {

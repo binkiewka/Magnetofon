@@ -3,8 +3,9 @@ import QtQuick.Controls 2.15
 
 Button {
     id: control
-    implicitHeight: isRoundPlay ? 42 : (isCompact ? 22 : 28)
+    implicitHeight: isRoundPlay ? 42 : (isCompact ? 28 : 32)
     implicitWidth: isRoundPlay ? 42 : (isCompact ? Math.max(40, textMeasurer.implicitWidth + 18) : Math.max(50, textMeasurer.implicitWidth + 24))
+    Accessible.name: text
     padding: 0
     hoverEnabled: true
 
@@ -22,7 +23,7 @@ Button {
         visible: false
         text: (control.iconSymbol !== "" ? control.iconSymbol + "  " : "") + control.text
         font.family: theme.technicalFont
-        font.pixelSize: isCompact ? 8 : 9
+        font.pixelSize: isCompact ? 10 : 11
         font.weight: Font.DemiBold
         font.letterSpacing: 0.8
     }
@@ -30,7 +31,7 @@ Button {
     contentItem: Text {
         text: (control.iconSymbol !== "" ? control.iconSymbol + "  " : "") + control.text
         font.family: control.isRoundPlay ? theme.uiFont : theme.technicalFont
-        font.pixelSize: control.isRoundPlay ? 16 : (control.isCompact ? 8 : 9)
+        font.pixelSize: control.isRoundPlay ? 16 : (control.isCompact ? 10 : 11)
         font.weight: Font.DemiBold
         font.letterSpacing: control.isRoundPlay ? 0 : 0.8
         color: control.isStop ? theme.red
@@ -100,7 +101,7 @@ Button {
                 color: "transparent"
                 border.color: theme.cyan
                 border.width: 1
-                visible: control.isPrimary || control.isPowerOn
+                visible: control.isPrimary || control.isPowerOn || control.visualFocus
                 opacity: 0.34
             }
         }

@@ -12,6 +12,8 @@ namespace AudioRouting {
 QString outputChannels(const QString &mode);
 bool shouldUpmixToSurround(const QString &mode, int sourceChannels);
 QString surroundUpmixFilter();
+// Linked look-ahead peak protection; no auto make-up gain/album normalization.
+QString enhancementProtectionFilter();
 QString bassManagedUpmixFilter(bool surround, int speakerHz, int subHz, double subDb);
 // Cutoff order: front left, front right, center, surround left, surround right.
 QString surroundBassManagementFilter(const std::array<int, 5> &cutoffs, int subHz,

@@ -1,6 +1,7 @@
 #ifndef VU_METER_ITEM_HPP
 #define VU_METER_ITEM_HPP
 
+#include <QImage>
 #include <QQuickPaintedItem>
 #include <QPainter>
 
@@ -25,8 +26,11 @@ signals:
     void rightLevelChanged();
 
 private:
-    void drawMcIntoshDial(QPainter *p, double x, double y, double w, double h, double level, const QString &label);
+    void ensureBackgroundCache(int w, int h, qreal dpr);
+    void drawMcIntoshDialStatic(QPainter *p, double x, double y, double w, double h, const QString &label);
+    void drawMcIntoshDialDynamic(QPainter *p, double x, double y, double w, double h, double level);
 
+    QImage m_cachedBackground;
     double m_leftLevel = 0.0;
     double m_rightLevel = 0.0;
 };

@@ -9,7 +9,7 @@ extern "C" {
 
 class AudioRoutingDspTest : public QObject {
     Q_OBJECT
-    struct Result { std::array<double, 6> rms{}; QString layout; bool ok = false; };
+    struct Result { std::array<double, 6> rms{}; double peak = 0; QString layout; bool ok = false; };
     Result render(const QString &source, const QString &filter)
     {
         Result result;
@@ -36,13 +36,23 @@ class AudioRoutingDspTest : public QObject {
             char layout[80]{};
             av_channel_layout_describe(&frame->ch_layout, layout, sizeof(layout));
             result.layout = QString::fromLatin1(layout);
-            // Ignore filter startup transients.
-            if (frame->pts > 4800) {
+            // Peak protection must also hold through startup, not just steady tones.
+            for (int c = 0; c < 6; ++c) {
+                const float *data = reinterpret_cast<const float *>(frame->extended_data[c]);
+                for (int i = 0; i < frame->nb_samples; ++i)
+                    result.peak = std::max(result.peak, std::abs(static_cast<double>(data[i])));
+            }
+            // Ignore filter startup transients for frequency/RMS assertions.
+            // Use the same absolute sample window even when a look-ahead
+            // filter emits different packet sizes. Whole-frame trimming would
+            // compare different sine phases and misdiagnose a gain change.
+            const int first = static_cast<int>(std::clamp<qint64>(4800 - frame->pts, 0, frame->nb_samples));
+            if (first < frame->nb_samples) {
                 for (int c = 0; c < 6; ++c) {
                     const float *data = reinterpret_cast<const float *>(frame->extended_data[c]);
-                    for (int i = 0; i < frame->nb_samples; ++i) result.rms[c] += data[i] * data[i];
+                    for (int i = first; i < frame->nb_samples; ++i) result.rms[c] += data[i] * data[i];
                 }
-                samples += frame->nb_samples;
+                samples += frame->nb_samples - first;
             }
             av_frame_unref(frame);
         }
@@ -60,6 +70,49 @@ class AudioRoutingDspTest : public QObject {
             .arg(expressions.join('|'), side ? "5.1(side)" : "5.1");
     }
 private slots:
+    void protectionContainsCoherentBassWithoutNormalizingQuietAudio()
+    {
+        for (bool side : {false, true}) {
+            for (double subGain : {0.0, 6.0}) {
+                const QString channel = "0.5*sin(2*PI*40*t)";
+                const QString source = QString("aevalsrc=exprs=%1:s=48000:d=1:c=%2")
+                    .arg(QStringList{channel,channel,channel,channel,channel,channel}.join('|'), side ? "5.1(side)" : "5.1");
+                const QString graph = AudioRouting::surroundBassManagementFilter({80,80,80,80,80},120,subGain,false,side);
+                const auto raw = render(source,graph);
+                const auto protectedSignal = render(source,graph+","+AudioRouting::enhancementProtectionFilter());
+                QVERIFY(raw.ok && protectedSignal.ok);
+                QVERIFY(raw.peak > 2.7);
+                QVERIFY2(protectedSignal.peak <= 0.981, qPrintable(QString::number(protectedSignal.peak)));
+                QVERIFY(protectedSignal.peak > 0.9); // No unconditional large attenuation.
+                const QString quiet = QString(source).replace("0.5*sin", "0.005*sin");
+                const auto quietRaw = render(quiet,graph);
+                const auto quietProtected = render(quiet,graph+","+AudioRouting::enhancementProtectionFilter());
+                QVERIFY(quietRaw.ok && quietProtected.ok);
+                for (int c = 0; c < 6; ++c) {
+                    QVERIFY(std::abs(quietRaw.rms[c]-quietProtected.rms[c]) < 0.00002);
+                }
+            }
+        }
+    }
+
+    void protectionContainsEqualizerBoostAndRetainsSurroundLayout()
+    {
+        const QString c = "0.5*sin(2*PI*1000*t)";
+        const QString source = QString("aevalsrc=exprs=%1:s=48000:d=1:c=5.1(side)")
+            .arg(QStringList{c,"0.25*sin(2*PI*1000*t)",c,c,c,c}.join('|'));
+        const QString boost = "equalizer=f=1000:width_type=o:width=1:g=12,volume=12dB";
+        const auto raw = render(source,boost);
+        const auto protectedSignal = render(source,boost+","+AudioRouting::enhancementProtectionFilter());
+        QVERIFY(raw.ok && protectedSignal.ok);
+        QVERIFY(raw.peak > 5.0);
+        QVERIFY(protectedSignal.peak <= 0.981);
+        QCOMPARE(protectedSignal.layout, QString("5.1(side)"));
+        // An independently limiting channel would destroy this 2:1 ratio.
+        // One shared gain envelope must preserve the original mix balance.
+        QVERIFY(std::abs(protectedSignal.rms[1] / protectedSignal.rms[0] - 0.5) < 0.000001);
+        for (int c=2;c<6;++c) QVERIFY(std::abs(protectedSignal.rms[c]-protectedSignal.rms[0])<0.000001);
+    }
+
     void individualCrossoversAndChannelMapping()
     {
         const int channels[] = {0, 1, 2, 4, 5};

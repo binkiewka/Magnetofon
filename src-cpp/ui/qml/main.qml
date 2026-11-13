@@ -1,14 +1,16 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
+import QtQuick.Window 2.15
 import QtQuick.Layouts 1.15
 import Magnetofon 1.0
 
 ApplicationWindow {
     id: window
-    width: 1060
-    height: 730
-    minimumWidth: 960
-    minimumHeight: 660
+    objectName: "mainConsole"
+    width: Math.max(640, Math.min(1060, Screen.desktopAvailableWidth - 24))
+    height: Math.max(480, Math.min(800, Screen.desktopAvailableHeight - 24))
+    minimumWidth: 640
+    minimumHeight: 480
     visible: true
     title: "MAGNETOFON — HI-FI STEREO CONSOLE / MODEL ST-8000"
     color: "#080a08"
@@ -19,6 +21,18 @@ ApplicationWindow {
     onClosing: Qt.quit()
 
     Theme { id: theme }
+    Shortcut { sequence: "Space"; enabled: !visualsModal.visible && !speakersDialog.visible && !playlistPanel.searchHasFocus; onActivated: audioPlayer.togglePlayPause() }
+    Shortcut { sequence: "Media Play"; onActivated: audioPlayer.play() }
+    Shortcut { sequence: "Media Pause"; onActivated: audioPlayer.pause() }
+    Shortcut { sequence: "Media Toggle Play/Pause"; onActivated: audioPlayer.togglePlayPause() }
+    Shortcut { sequence: "Media Next"; onActivated: audioPlayer.next() }
+    Shortcut { sequence: "Media Previous"; onActivated: audioPlayer.previous() }
+    Shortcut { sequence: "Ctrl+Right"; onActivated: audioPlayer.next() }
+    Shortcut { sequence: "Ctrl+Left"; onActivated: audioPlayer.previous() }
+    Shortcut { sequence: "Ctrl+F"; onActivated: playlistPanel.focusSearch() }
+    Shortcut { sequence: "Ctrl+Up"; enabled: !playlistPanel.listHasFocus; onActivated: audioPlayer.volume = Math.min(1, audioPlayer.volume + 0.02) }
+    Shortcut { sequence: "Ctrl+Down"; enabled: !playlistPanel.listHasFocus; onActivated: audioPlayer.volume = Math.max(0, audioPlayer.volume - 0.02) }
+
 
     Item {
         anchors.fill: parent
@@ -128,7 +142,9 @@ ApplicationWindow {
                     }
 
                     ColumnLayout {
-                        anchors.centerIn: parent
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.horizontalCenter: window.width >= 900 ? parent.horizontalCenter : undefined
+                        anchors.left: window.width < 900 ? parent.left : undefined
                         spacing: 0
 
                         Text {
@@ -136,12 +152,13 @@ ApplicationWindow {
                             color: theme.text
                             font.family: theme.uiFont
                             font.weight: Font.Black
-                            font.pixelSize: 23
-                            font.letterSpacing: 7.2
+                            font.pixelSize: window.width < 900 ? 18 : 23
+                            font.letterSpacing: window.width < 900 ? 2.5 : 7.2
                             Layout.alignment: Qt.AlignHCenter
                         }
 
                         RowLayout {
+                            visible: window.width >= 900
                             Layout.alignment: Qt.AlignHCenter
                             spacing: 8
                             Rectangle { width: 24; height: 1; color: theme.cyan; opacity: 0.55 }
@@ -171,6 +188,7 @@ ApplicationWindow {
                         }
                         HifiButton {
                             text: "VISUALS"
+                            enabled: visualizerLauncher.runtimeAvailable || visualizerLauncher.isRunning
                             iconSymbol: "◇"
                             isCompact: true
                             isPrimary: visualizerLauncher.isRunning
@@ -203,18 +221,45 @@ ApplicationWindow {
 
                 RowLayout {
                     Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    spacing: 14
-
-                    ColumnLayout {
+                    visible: audioPlayer.playbackError.length > 0 || audioPlayer.loading
+                    Text {
                         Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        spacing: 12
+                        text: audioPlayer.playbackError.length > 0 ? audioPlayer.playbackError : "Loading media…"
+                        color: audioPlayer.playbackError.length > 0 ? theme.red : theme.cyan
+                        font.pixelSize: 12
+                        wrapMode: Text.Wrap
+                        Accessible.role: Accessible.StaticText
+                        Accessible.name: text
+                    }
+                    HifiButton { text: "RETRY"; visible: audioPlayer.playbackError.length > 0; onClicked: audioPlayer.retry() }
+                    HifiButton { text: "SKIP"; visible: audioPlayer.playbackError.length > 0; onClicked: audioPlayer.next() }
+                }
+
+                Flickable {
+                    id: rackViewport
+                    objectName: "rackViewport"
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    clip: true
+                    contentWidth: width
+                    contentHeight: moduleGrid.height
+                    boundsBehavior: Flickable.StopAtBounds
+                    ScrollBar.vertical: ScrollBar { policy: rackViewport.contentHeight > rackViewport.height ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff }
+                    GridLayout {
+                    id: moduleGrid
+                    width: rackViewport.width
+                    height: Math.max(implicitHeight, rackViewport.height)
+                    columns: width < 850 ? 1 : 2
+                    rowSpacing: 14
+                    columnSpacing: 14
 
                         AmplifierPanel {
+                            Layout.minimumWidth: 0
+                            Layout.column: moduleGrid.columns === 1 ? 0 : 0
+                            Layout.row: moduleGrid.columns === 1 ? 3 : 0
                             onSpeakerSettingsRequested: speakersDialog.visible = true
                             Layout.fillWidth: true
-                            Layout.preferredHeight: playlistPanel.isExpanded ? 0 : 176
+                            Layout.preferredHeight: playlistPanel.isExpanded ? 0 : (moduleGrid.columns === 1 ? 190 : 225)
                             visible: !playlistPanel.isExpanded
                             volume: audioPlayer.volume
                             surroundMode: audioPlayer.surroundMode
@@ -223,14 +268,23 @@ ApplicationWindow {
                         }
 
                         VuMeterPanel {
+                            Layout.minimumWidth: 0
+                            Layout.column: moduleGrid.columns === 1 ? 0 : 0
+                            Layout.row: moduleGrid.columns === 1 ? 4 : 1
                             Layout.fillWidth: true
-                            Layout.preferredHeight: playlistPanel.isExpanded ? 0 : 166
+                            Layout.preferredHeight: playlistPanel.isExpanded ? 0 : (moduleGrid.columns === 1 ? 166 : 190)
                             visible: !playlistPanel.isExpanded
+                            analysisAvailable: audioPlayer.analysisAvailable
+                            playing: audioPlayer.isPlaying
                             leftLevel: audioPlayer.leftMeter
                             rightLevel: audioPlayer.rightMeter
                         }
 
                         PlaylistPanel {
+                            Layout.minimumWidth: 0
+                            Layout.column: 0
+                            Layout.row: moduleGrid.columns === 1 ? 2 : (isExpanded ? 0 : 2)
+                            Layout.rowSpan: moduleGrid.columns > 1 && isExpanded ? 3 : 1
                             id: playlistPanel
                             Layout.fillWidth: true
                             Layout.fillHeight: true
@@ -242,16 +296,12 @@ ApplicationWindow {
                             onClearRequested: playlistModel.clear()
                         }
 
-                    }
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        spacing: 12
-
                         EqualizerPanel {
+                            Layout.minimumWidth: 0
+                            Layout.column: moduleGrid.columns === 1 ? 0 : 1
+                            Layout.row: moduleGrid.columns === 1 ? 5 : 0
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 176
+                            Layout.preferredHeight: 225
                             eqEnabled: audioPlayer.eqEnabled
                             preamp: audioPlayer.preamp
                             eqBands: audioPlayer.eqBands
@@ -267,49 +317,73 @@ ApplicationWindow {
                         }
 
                         ProgramMonitorPanel {
+                            Layout.minimumWidth: 0
+                            Layout.column: moduleGrid.columns === 1 ? 0 : 1
+                            Layout.row: moduleGrid.columns === 1 ? 0 : 1
+                            id: programMonitorPanel
+                            readonly property var currentTrack: playlistModel.currentTrack
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 166
-                            trackTitle: playlistModel.currentIndex >= 0 ? playlistModel.getTrack(playlistModel.currentIndex).title : "READY FOR INPUT"
-                            artist: playlistModel.currentIndex >= 0 ? playlistModel.getTrack(playlistModel.currentIndex).artist : "UNKNOWN ARTIST"
-                            album: playlistModel.currentIndex >= 0 ? playlistModel.getTrack(playlistModel.currentIndex).album : "MAGNETOFON SYSTEM"
-                            albumArtist: playlistModel.currentIndex >= 0 ? playlistModel.getTrack(playlistModel.currentIndex).albumArtist : ""
-                            artworkUrl: playlistModel.currentIndex >= 0 ? playlistModel.getTrack(playlistModel.currentIndex).artworkUrl : ""
-                            genre: playlistModel.currentIndex >= 0 ? playlistModel.getTrack(playlistModel.currentIndex).genre : ""
-                            year: playlistModel.currentIndex >= 0 ? playlistModel.getTrack(playlistModel.currentIndex).year : ""
-                            trackNumber: playlistModel.currentIndex >= 0 ? playlistModel.getTrack(playlistModel.currentIndex).trackNumber : ""
-                            codec: playlistModel.currentIndex >= 0 ? playlistModel.getTrack(playlistModel.currentIndex).codec : ""
-                            formatLabel: playlistModel.currentIndex >= 0 ? playlistModel.getTrack(playlistModel.currentIndex).formatLabel : "NO INPUT"
-                            sampleRate: playlistModel.currentIndex >= 0 ? playlistModel.getTrack(playlistModel.currentIndex).sampleRate : 0
-                            channels: playlistModel.currentIndex >= 0 ? playlistModel.getTrack(playlistModel.currentIndex).channels : 0
-                            bitDepth: playlistModel.currentIndex >= 0 ? playlistModel.getTrack(playlistModel.currentIndex).bitDepth : 0
-                            bitrate: playlistModel.currentIndex >= 0 ? playlistModel.getTrack(playlistModel.currentIndex).bitrate : 0
+                            Layout.preferredHeight: 190
+                            trackTitle: playlistModel.currentIndex >= 0 ? currentTrack.title : "READY FOR INPUT"
+                            artist: playlistModel.currentIndex >= 0 ? currentTrack.artist : "UNKNOWN ARTIST"
+                            album: playlistModel.currentIndex >= 0 ? currentTrack.album : "MAGNETOFON SYSTEM"
+                            albumArtist: playlistModel.currentIndex >= 0 ? currentTrack.albumArtist : ""
+                            artworkUrl: playlistModel.currentIndex >= 0 ? currentTrack.artworkUrl : ""
+                            genre: playlistModel.currentIndex >= 0 ? currentTrack.genre : ""
+                            year: playlistModel.currentIndex >= 0 ? currentTrack.year : ""
+                            trackNumber: playlistModel.currentIndex >= 0 ? currentTrack.trackNumber : ""
+                            codec: playlistModel.currentIndex >= 0 ? currentTrack.codec : ""
+                            formatLabel: playlistModel.currentIndex >= 0 ? currentTrack.formatLabel : "NO INPUT"
+                            sampleRate: playlistModel.currentIndex >= 0 ? currentTrack.sampleRate : 0
+                            channels: playlistModel.currentIndex >= 0 ? currentTrack.channels : 0
+                            bitDepth: playlistModel.currentIndex >= 0 ? currentTrack.bitDepth : 0
+                            bitrate: playlistModel.currentIndex >= 0 ? currentTrack.bitrate : 0
                             audioTracks: audioPlayer.audioTracks
                             selectedAudioTrackId: audioPlayer.selectedAudioTrackId
                             decodedAudioLabel: audioPlayer.decodedAudioLabel
                             sourceAudioLabel: audioPlayer.sourceAudioLabel
                             position: audioPlayer.position
                             duration: audioPlayer.duration > 0 ? audioPlayer.duration
-                                                               : (playlistModel.currentIndex >= 0 ? playlistModel.getTrack(playlistModel.currentIndex).duration : 0)
+                                                               : (playlistModel.currentIndex >= 0 ? currentTrack.duration : 0)
                             onSeekRequested: function(position) { audioPlayer.seek(position) }
                             onAudioTrackSelected: function(trackId) { audioPlayer.selectAudioTrack(trackId) }
                         }
 
                         CassettePanel {
+                            Layout.minimumWidth: 0
+                            Layout.column: moduleGrid.columns === 1 ? 0 : 1
+                            Layout.row: moduleGrid.columns === 1 ? 1 : 2
                             gaplessEnabled: audioPlayer.gaplessEnabled
                             onGaplessToggled: function(enabled) { audioPlayer.gaplessEnabled = enabled }
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-                            Layout.minimumHeight: 190
+                            Layout.minimumHeight: 260
                             isPlaying: audioPlayer.isPlaying
                             progress: audioPlayer.position
                             duration: audioPlayer.duration
                             onEjectRequested: playlistModel.openFileDialog()
-                            onPreviousRequested: playlistModel.previousTrack()
+                            onPreviousRequested: audioPlayer.previous()
                             onPlayPauseRequested: audioPlayer.togglePlayPause()
                             onStopRequested: audioPlayer.stop()
-                            onNextRequested: playlistModel.nextTrack()
+                            onNextRequested: audioPlayer.next()
                         }
                     }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: moduleGrid.columns === 1 || window.height < 780
+                    spacing: 8
+                    Text {
+                        Layout.fillWidth: true
+                        text: playlistModel.currentIndex >= 0 ? playlistModel.currentTrack.title : "READY FOR INPUT"
+                        color: theme.textSoft
+                        font.pixelSize: 12
+                        elide: Text.ElideRight
+                    }
+                    HifiButton { text: "|◀"; Accessible.name: "Previous track"; onClicked: audioPlayer.previous() }
+                    HifiButton { text: audioPlayer.isPlaying ? "Ⅱ" : "▶"; Accessible.name: audioPlayer.isPlaying ? "Pause" : "Play"; isPrimary: audioPlayer.isPlaying; onClicked: audioPlayer.togglePlayPause() }
+                    HifiButton { text: "■"; Accessible.name: "Stop"; isStop: true; onClicked: audioPlayer.stop() }
+                    HifiButton { text: "▶|"; Accessible.name: "Next track"; onClicked: audioPlayer.next() }
                 }
             }
 

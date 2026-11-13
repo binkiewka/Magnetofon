@@ -1,5 +1,6 @@
 #include "AudioPlayer.hpp"
 #include <QSettings>
+#include <limits>
 #include "AudioRouting.hpp"
 #include "PlaylistModel.hpp"
 #include "PulseAudioAnalyzer.hpp"
@@ -13,7 +14,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
-#include <random>
 
 namespace {
 
@@ -93,7 +93,19 @@ AudioPlayer::AudioPlayer(QObject *parent)
         m_surroundCutoffs[i] = std::clamp(settings.value(QString("speakers/surround/cutoff%1").arg(i), 80).toInt(), 0, 200);
     m_surroundSubwooferCutoff = std::clamp(settings.value("speakers/surround/lowpass", 120).toInt(), 40, 200);
     m_surroundSubwooferGain = std::clamp(settings.value("speakers/surround/subGain", 0).toDouble(), -12.0, 6.0);
-    m_eqBands = QVariantList{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    const auto finiteSetting = [&settings](const QString &key, double fallback, double low, double high) {
+        const double value = settings.value(key, fallback).toDouble();
+        return std::isfinite(value) ? std::clamp(value, low, high) : fallback;
+    };
+    const QString mode = settings.value("sound/mode", "AUTO").toString();
+    if (QStringList{"AUTO", "STEREO", "2.1", "SURROUND"}.contains(mode)) m_surroundMode = mode;
+    m_eqEnabled = settings.value("sound/eqEnabled", false).toBool();
+    m_preamp = finiteSetting("sound/preamp", -3.0, -12.0, 12.0);
+    m_protectionEnabled = settings.value("sound/protection", true).toBool();
+    const QString repeat = settings.value("playback/repeat", "OFF").toString();
+    if (QStringList{"OFF", "ALL", "ONE"}.contains(repeat)) m_repeatMode = repeat;
+    for (int band = 0; band < 10; ++band)
+        m_eqBands.append(finiteSetting(QString("sound/band%1").arg(band), 0.0, -12.0, 12.0));
     for (int i = 0; i < 16; ++i) m_spectrum.append(0.0);
 
     connect(m_videoWindow.get(), &VideoWindow::windowVisibilityChanged, this,
@@ -105,7 +117,12 @@ AudioPlayer::AudioPlayer(QObject *parent)
 
     initMpv();
     setVolume(m_volume);
+#ifdef MAGNETOFON_TESTING
+    // Tests use null/PCM output and never record the user's live output mix.
+    m_audioAnalyzer = std::make_unique<PulseAudioAnalyzer>(false);
+#else
     m_audioAnalyzer = std::make_unique<PulseAudioAnalyzer>();
+#endif
 
     m_eventTimer = new QTimer(this);
     connect(m_eventTimer, &QTimer::timeout, this, &AudioPlayer::processMpvEvents);
@@ -160,12 +177,13 @@ void AudioPlayer::initMpv()
     mpv_set_option_string(m_mpv, "gapless-audio", m_gaplessEnabled ? "yes" : "no");
     mpv_set_option_string(m_mpv, "prefetch-playlist", "yes");
 #ifdef MAGNETOFON_TESTING
+    mpv_set_option_string(m_mpv, "ao", "null");
     const QByteArray testOutput = qgetenv("MAGNETOFON_TEST_PCM_FILE");
     if (!testOutput.isEmpty()) {
         mpv_set_option_string(m_mpv, "ao", "pcm");
         mpv_set_option_string(m_mpv, "ao-pcm-file", testOutput.constData());
         mpv_set_option_string(m_mpv, "ao-pcm-waveheader", "yes");
-        mpv_set_option_string(m_mpv, "ao-pcm-fast", "no");
+        // PCM output intentionally runs untimed; only sample integrity is asserted.
     }
 #endif
 
@@ -204,6 +222,8 @@ void AudioPlayer::setPlaying(bool playing)
     playing = playing && m_fileLoaded && !m_currentFile.isEmpty();
     if (m_isPlaying == playing) return;
     m_isPlaying = playing;
+    if (m_audioAnalyzer) m_audioAnalyzer->setActive(m_isPlaying);
+    if (!playing) setAnalysisAvailable(false);
     emit isPlayingChanged();
 }
 
@@ -218,18 +238,133 @@ void AudioPlayer::setPlaylist(PlaylistModel *playlist)
     if (!playlist) return;
     connect(playlist, &PlaylistModel::trackSelected, this, [this](const QString &path) {
         if (!m_playlist || m_playlist->currentFilePath() != path) return;
-        load(path);
-        play();
+        if (path == m_currentFile && m_fileLoaded) {
+            play(); // Reactivating a paused current row resumes, not reloads it.
+        } else if (load(path)) {
+            play();
+        }
     }, Qt::QueuedConnection); // Let a multi-file addition finish before prequeuing its tracks.
-    connect(playlist, &PlaylistModel::emptied, this, &AudioPlayer::stop);
-    connect(this, &AudioPlayer::trackEnded, playlist, [this, playlist]() {
-        if (!m_gaplessEnabled) playlist->nextTrack();
-    });
+    connect(playlist, &PlaylistModel::emptied, this, &AudioPlayer::unload);
+    connect(this, &AudioPlayer::trackEnded, playlist, [this] { advanceAfterEof(); });
     const auto resync = [this]() { m_queueSyncTimer.start(0); };
     connect(playlist, &PlaylistModel::currentIndexChanged, this, resync);
     connect(playlist, &PlaylistModel::countChanged, this, resync);
     connect(playlist, &QAbstractItemModel::rowsMoved, this, resync);
     resync();
+}
+
+double AudioPlayer::volumeDb() const
+{
+    // mpv's documented percent-volume convention is cubic; this relationship
+    // is verified against PCM in the supported runtime, not guessed from percent.
+    return m_volume > 0 ? 60.0 * std::log10(m_volume)
+                        : -std::numeric_limits<double>::infinity();
+}
+
+void AudioPlayer::setPlaybackError(const QString &error)
+{
+    if (m_playbackError == error) return;
+    m_playbackError = error;
+    emit playbackErrorChanged();
+}
+
+void AudioPlayer::setLoading(bool loading)
+{
+    if (m_loadPending == loading) return;
+    m_loadPending = loading;
+    emit loadingChanged();
+}
+
+bool AudioPlayer::restorePaused(const QString &path, double seconds)
+{
+    if (!load(path)) return false;
+    m_restorePosition = std::isfinite(seconds) ? std::max(0.0, seconds) : 0.0;
+    m_playWhenLoaded = false;
+    return true;
+}
+
+void AudioPlayer::retry()
+{
+    const QString path = m_playlist && m_playlist->currentIndex() >= 0
+        ? m_playlist->currentFilePath() : (!m_failedFile.isEmpty() ? m_failedFile : m_currentFile);
+    if (!path.isEmpty() && load(path)) play();
+}
+
+void AudioPlayer::setRepeatMode(const QString &mode)
+{
+    if (!QStringList{"OFF", "ALL", "ONE"}.contains(mode) || mode == m_repeatMode) return;
+    m_repeatMode = mode;
+    QSettings().setValue("playback/repeat", mode);
+    emit repeatModeChanged();
+    syncNextTrack();
+}
+
+void AudioPlayer::advanceAfterEof()
+{
+    if (!m_playlist || m_playlist->count() == 0) return;
+    const int index = m_playlist->currentIndex();
+    if (m_repeatMode == "ONE") {
+        if (load(m_playlist->currentFilePath())) play();
+    } else if (index + 1 < m_playlist->count()) {
+        m_playlist->setCurrentIndex(index + 1);
+    } else if (m_repeatMode == "ALL") {
+        if (index == 0) {
+            if (load(m_playlist->currentFilePath())) play();
+        } else m_playlist->setCurrentIndex(0);
+    }
+}
+
+void AudioPlayer::next()
+{
+    if (!m_playlist || m_playlist->count() == 0) return;
+    int index = m_playlist->currentIndex() + 1;
+    if (index >= m_playlist->count()) {
+        if (m_repeatMode != "ALL") { stop(); return; }
+        index = 0;
+    }
+    if (index == m_playlist->currentIndex()) {
+        if (load(m_playlist->currentFilePath())) play();
+    } else m_playlist->setCurrentIndex(index);
+}
+
+void AudioPlayer::previous()
+{
+    if (!m_playlist || m_playlist->count() == 0) return;
+    if (m_fileLoaded && m_position > 3.0) { seek(0); return; }
+    int index = m_playlist->currentIndex() - 1;
+    if (index < 0) index = m_repeatMode == "ALL" ? m_playlist->count() - 1 : 0;
+    if (index == m_playlist->currentIndex()) {
+        if (load(m_playlist->currentFilePath())) play();
+    } else m_playlist->setCurrentIndex(index);
+}
+
+void AudioPlayer::persistSoundProfile()
+{
+    QSettings settings;
+    settings.setValue("sound/mode", m_surroundMode);
+    settings.setValue("sound/eqEnabled", m_eqEnabled);
+    settings.setValue("sound/preamp", m_preamp);
+    settings.setValue("sound/protection", m_protectionEnabled);
+    for (int i = 0; i < m_eqBands.size(); ++i)
+        settings.setValue(QString("sound/band%1").arg(i), m_eqBands[i]);
+}
+
+void AudioPlayer::setProtectionEnabled(bool enabled)
+{
+    if (enabled == m_protectionEnabled) return;
+    m_protectionEnabled = enabled;
+    persistSoundProfile();
+    emit protectionEnabledChanged();
+    applyAudioFilters();
+}
+
+void AudioPlayer::resetSoundProfile()
+{
+    setSurroundMode("AUTO");
+    setEqEnabled(false);
+    setPreamp(-3.0);
+    setEqBands(QVariantList{0, 0, 0, 0, 0, 0, 0, 0, 0, 0});
+    setProtectionEnabled(true);
 }
 
 void AudioPlayer::setGaplessEnabled(bool enabled)
@@ -256,8 +391,19 @@ void AudioPlayer::syncNextTrack()
     if (activeFile != m_currentFile) return;
     QStringList next;
     if (m_gaplessEnabled && m_playlist && m_playlist->currentFilePath() == m_currentFile) {
-        for (int index = m_playlist->currentIndex() + 1; index < m_playlist->count(); ++index)
-            next.append(m_playlist->getTrack(index).value("filePath").toString());
+        const int current = m_playlist->currentIndex();
+        if (m_repeatMode == "ONE") {
+            next.append(m_currentFile);
+        } else {
+            for (int index = current + 1; index < m_playlist->count(); ++index)
+                next.append(m_playlist->getTrack(index).value("filePath").toString());
+            if (m_repeatMode == "ALL") {
+                // One complete bounded cycle is enough to prefetch the wrap.
+                // Replenish as each native FILE_LOADED handoff arrives.
+                for (int index = 0; index <= current; ++index)
+                    next.append(m_playlist->getTrack(index).value("filePath").toString());
+            }
+        }
     }
     if (next == m_queuedFiles) return;
     const char *clear[] = {"playlist-clear", nullptr}; // Keeps the playing entry.
@@ -275,6 +421,7 @@ void AudioPlayer::rememberNativeQueue()
 {
     mpv_node entries{};
     if (mpv_get_property(m_mpv, "playlist", MPV_FORMAT_NODE, &entries) < 0) return;
+    m_nativeFiles.clear();
     if (entries.format == MPV_FORMAT_NODE_ARRAY) {
         for (int i = 0; i < entries.u.list->num; ++i) {
             const mpv_node &entry = entries.u.list->values[i];
@@ -291,13 +438,19 @@ void AudioPlayer::queueLoadCurrentFile()
     if (!m_mpv || m_currentFile.isEmpty() || m_loadPending) return;
     const QByteArray encodedPath = QFile::encodeName(m_currentFile);
     const char *command[] = {"loadfile", encodedPath.constData(), "replace", nullptr};
-    const int status = mpv_command_async(m_mpv, 0, command);
+    // loadfile is only a playlist-control operation: decoding/opening the file
+    // still happens independently in mpv. Accept it synchronously so a following
+    // playlist snapshot belongs to this request (async and sync calls may reorder).
+    const int status = mpv_command(m_mpv, command);
     if (status < 0) {
-        qWarning() << "[AudioPlayer] Failed to queue file:" << mpv_error_string(status);
+        setPlaybackError(QStringLiteral("Cannot load this track: %1").arg(QString::fromUtf8(mpv_error_string(status))));
         return;
     }
-    m_loadPending = true;
+    setLoading(true);
     m_queuedFiles.clear();
+    rememberNativeQueue();
+    m_eventEntryId = -1;
+    m_startedFile.clear();
 }
 
 void AudioPlayer::processMpvEvents()
@@ -316,20 +469,36 @@ void AudioPlayer::processMpvEvents()
         }
         case MPV_EVENT_START_FILE: {
             const auto *start = static_cast<mpv_event_start_file *>(event->data);
+            // Record even a retired START: its following FILE_LOADED has no ID
+            // of its own and must not masquerade as the latest requested path.
+            m_eventEntryId = start->playlist_entry_id;
+            if (!m_nativeFiles.contains(m_eventEntryId)) break;
             m_startedFile = m_nativeFiles.value(start->playlist_entry_id);
             if (m_loadPending || !m_gaplessEnabled) setFileLoaded(false);
             break;
         }
 
         case MPV_EVENT_FILE_LOADED: {
+            if (!m_nativeFiles.contains(m_eventEntryId)) break;
+            // Clear/remove-last may race already-queued native events. Never let
+            // those events restore an identity that the user explicitly removed.
+            if (m_currentFile.isEmpty() || (!m_loadPending && !m_fileLoaded && m_queuedFiles.isEmpty())
+                || (m_playlist && m_playlist->count() == 0)) {
+                const char *stopCommand[] = {"stop", nullptr};
+                mpv_command_async(m_mpv, 0, stopCommand);
+                break;
+            }
             char *path = mpv_get_property_string(m_mpv, "path");
             const QString loadedPath = !m_startedFile.isEmpty() ? m_startedFile
                 : (path ? QFileInfo(QString::fromUtf8(path)).absoluteFilePath() : QString());
             mpv_free(path);
+            // A replaced asynchronous load must never overwrite the latest
+            // requested identity, even if its old FILE_LOADED was already queued.
+            if (m_loadPending && !loadedPath.isEmpty() && loadedPath != m_currentFile) break;
+            const int queuedIndex = m_queuedFiles.indexOf(loadedPath);
+            if (queuedIndex >= 0) m_queuedFiles = m_queuedFiles.mid(queuedIndex + 1);
             if (!loadedPath.isEmpty() && loadedPath != m_currentFile) {
                 m_currentFile = loadedPath;
-                const int queuedIndex = m_queuedFiles.indexOf(loadedPath);
-                if (queuedIndex >= 0) m_queuedFiles = m_queuedFiles.mid(queuedIndex + 1);
                 m_position = 0;
                 m_duration = 0;
                 emit currentFileChanged();
@@ -337,7 +506,8 @@ void AudioPlayer::processMpvEvents()
                 emit durationChanged();
                 if (m_playlist) m_playlist->followPlayback(loadedPath);
             }
-            m_loadPending = false;
+            setLoading(false);
+            setPlaybackError({});
             setFileLoaded(true);
             updateAudioTracks();
             updateSourceAudioParams();
@@ -346,6 +516,10 @@ void AudioPlayer::processMpvEvents()
             if (m_hasVideo) showVideo();
             applyAudioFilters();
             syncNextTrack();
+            if (m_restorePosition >= 0) {
+                seek(std::min(m_restorePosition, m_duration > 0 ? m_duration : m_restorePosition));
+                m_restorePosition = -1;
+            }
             if (m_playWhenLoaded) {
                 int paused = 0;
                 m_paused = false;
@@ -357,6 +531,7 @@ void AudioPlayer::processMpvEvents()
 
         case MPV_EVENT_PROPERTY_CHANGE: {
             auto *property = static_cast<mpv_event_property *>(event->data);
+            if (m_currentFile.isEmpty()) break;
             if (strcmp(property->name, "time-pos") == 0 && property->format == MPV_FORMAT_DOUBLE) {
                 if (property->data) {
                     const double value = *static_cast<double *>(property->data);
@@ -394,19 +569,37 @@ void AudioPlayer::processMpvEvents()
 
         case MPV_EVENT_END_FILE: {
             const auto *end = static_cast<mpv_event_end_file *>(event->data);
-            // A manual replacement reports STOP for the old entry before the new
-            // FILE_LOADED event. Do not cancel the new track's pending play request.
-            if (m_loadPending && end && end->reason == MPV_END_FILE_REASON_STOP) break;
+            if (m_currentFile.isEmpty()) break; // Unloaded/rejected selections retire old EOF too.
+            // EOF/ERROR/STOP from a retired native entry cannot finish, fail or
+            // advance a newer manual load, including a reload of the same path.
+            if (!end || !m_nativeFiles.contains(end->playlist_entry_id)) break;
             const bool reachedEnd = end && end->reason == MPV_END_FILE_REASON_EOF;
             if (end && end->reason == MPV_END_FILE_REASON_ERROR) {
-                qWarning() << "[AudioPlayer] Playback failed:" << mpv_error_string(end->error);
+                // A native gapless entry can fail before FILE_LOADED, so the
+                // displayed identity may still be the preceding successful song.
+                const QString failedPath = m_nativeFiles.value(end->playlist_entry_id, m_currentFile);
+                if (m_currentFile != failedPath) {
+                    m_currentFile = failedPath;
+                    emit currentFileChanged();
+                    m_duration = 0;
+                    emit durationChanged();
+                    if (m_playlist) m_playlist->followPlayback(failedPath);
+                }
+                const QString error = QString::fromUtf8(mpv_error_string(end->error));
+                // Deliberate stop-on-error policy: later prefetched entries
+                // cannot resume until the listener explicitly chooses Skip.
+                stop();
+                m_failedFile = failedPath;
+                setPlaybackError(QStringLiteral("Cannot play %1: %2. Retry or skip this track.")
+                    .arg(QFileInfo(failedPath).fileName(), error));
+                break;
             }
             if (reachedEnd && !m_queuedFiles.isEmpty()) {
                 // mpv advances its native queue without stopping/reopening the output.
                 break;
             }
             m_queuedFiles.clear();
-            m_loadPending = false;
+            setLoading(false);
             m_playWhenLoaded = false;
             setFileLoaded(false);
             clearMediaInfo();
@@ -421,15 +614,24 @@ void AudioPlayer::processMpvEvents()
     }
 }
 
-void AudioPlayer::load(const QString &filePath)
+bool AudioPlayer::load(const QString &filePath)
 {
-    if (!m_mpv) return;
+    if (!m_mpv) {
+        setPlaybackError(QStringLiteral("Audio engine is unavailable. Restart Magnetofon to retry."));
+        return false;
+    }
 
     const QFileInfo file(filePath);
-    if (!file.exists() || !file.isFile()) {
-        qWarning() << "[AudioPlayer] File does not exist:" << filePath;
-        return;
+    if (!file.exists() || !file.isFile() || !file.isReadable()) {
+        unload(); // A rejected new selection may not keep the former song alive.
+        m_failedFile = file.absoluteFilePath();
+        setPlaybackError(QStringLiteral("Cannot open %1. The file is missing or unreadable. Retry or skip this track.")
+            .arg(file.fileName()));
+        return false;
     }
+    m_failedFile.clear();
+    setPlaybackError({});
+    m_restorePosition = -1;
 
     if (m_currentFile != file.absoluteFilePath()) {
         m_currentFile = file.absoluteFilePath();
@@ -437,7 +639,7 @@ void AudioPlayer::load(const QString &filePath)
     }
 
     m_playWhenLoaded = false;
-    m_loadPending = false;
+    setLoading(false);
     m_queuedFiles.clear();
     m_nativeFiles.clear();
     clearMediaInfo();
@@ -459,15 +661,17 @@ void AudioPlayer::load(const QString &filePath)
 
     int paused = 1;
     m_paused = true;
-    mpv_set_property_async(m_mpv, 0, "pause", MPV_FORMAT_FLAG, &paused);
+    mpv_set_property(m_mpv, "pause", MPV_FORMAT_FLAG, &paused);
     applyAudioFilters(); // Clear the previous source’s channel-specific graph before loading.
+    if (!m_playbackError.isEmpty()) return false;
     queueLoadCurrentFile();
     setVolume(m_volume);
+    return m_loadPending;
 }
 
 void AudioPlayer::play()
 {
-    if (!m_mpv || m_currentFile.isEmpty()) return;
+    if (!m_mpv || m_currentFile.isEmpty() || (m_playlist && m_playlist->count() == 0)) return;
     m_playWhenLoaded = true;
     if (!m_fileLoaded) {
         queueLoadCurrentFile();
@@ -500,11 +704,15 @@ void AudioPlayer::stop()
 {
     if (!m_mpv) return;
     m_playWhenLoaded = false;
-    m_loadPending = false;
+    setLoading(false);
+    m_restorePosition = -1;
     m_queuedFiles.clear();
+    m_nativeFiles.clear();
+    m_eventEntryId = -1;
+    m_startedFile.clear();
     m_queueSyncTimer.stop();
     const char *command[] = {"stop", nullptr};
-    mpv_command_async(m_mpv, 0, command);
+    mpv_command(m_mpv, command);
     setFileLoaded(false);
     setPlaying(false);
     clearMediaInfo();
@@ -513,6 +721,31 @@ void AudioPlayer::stop()
         emit positionChanged();
     }
     resetAnalysis();
+}
+
+void AudioPlayer::unload()
+{
+    m_failedFile.clear();
+    setPlaybackError({});
+    stop(); // Ordinary Stop retains the selected track; queue reset does not.
+    m_nativeFiles.clear();
+    m_startedFile.clear();
+    if (!m_currentFile.isEmpty()) {
+        m_currentFile.clear();
+        emit currentFileChanged();
+    }
+    if (m_duration != 0) {
+        m_duration = 0;
+        emit durationChanged();
+    }
+    resetAnalysis(true);
+}
+
+void AudioPlayer::setAnalysisAvailable(bool available)
+{
+    if (m_analysisAvailable == available) return;
+    m_analysisAvailable = available;
+    emit analysisAvailableChanged();
 }
 
 void AudioPlayer::seek(double seconds)
@@ -549,6 +782,7 @@ void AudioPlayer::setSurroundSubwooferCutoff(int hz)
 
 void AudioPlayer::setSurroundSubwooferGain(double db)
 {
+    if (!std::isfinite(db)) return;
     if (!std::isfinite(db)) return;
     m_surroundSubwooferGain = std::clamp(db, -12.0, 6.0);
     QSettings().setValue("speakers/surround/subGain", m_surroundSubwooferGain);
@@ -597,6 +831,7 @@ void AudioPlayer::setSubwooferCutoff(int hz)
 void AudioPlayer::setSubwooferGain(double db)
 {
     if (!std::isfinite(db)) return;
+    if (!std::isfinite(db)) return;
     m_subwooferGain = std::clamp(db, -12.0, 6.0);
     QSettings().setValue("speakers/subGain", m_subwooferGain);
     emit speakerSettingsChanged();
@@ -605,6 +840,7 @@ void AudioPlayer::setSubwooferGain(double db)
 
 void AudioPlayer::setVolume(double volume)
 {
+    if (!std::isfinite(volume)) return;
     const double clamped = std::clamp(volume, 0.0, 1.0);
     if (std::abs(m_volume - clamped) > 0.0001) {
         m_volume = clamped;
@@ -617,8 +853,9 @@ void AudioPlayer::setVolume(double volume)
 
 void AudioPlayer::setSurroundMode(const QString &mode)
 {
-    if (m_surroundMode == mode) return;
+    if (!QStringList{"AUTO", "STEREO", "2.1", "SURROUND"}.contains(mode) || m_surroundMode == mode) return;
     m_surroundMode = mode;
+    persistSoundProfile();
     emit surroundModeChanged();
     applyAudioFilters();
 }
@@ -627,22 +864,35 @@ void AudioPlayer::setEqEnabled(bool enabled)
 {
     if (m_eqEnabled == enabled) return;
     m_eqEnabled = enabled;
+    persistSoundProfile();
     emit eqEnabledChanged();
     applyAudioFilters();
 }
 
 void AudioPlayer::setPreamp(double preamp)
 {
-    if (std::abs(m_preamp - preamp) < 0.01) return;
-    m_preamp = preamp;
+    if (!std::isfinite(preamp)) return;
+    const double clamped = std::clamp(preamp, -12.0, 12.0);
+    if (std::abs(m_preamp - clamped) < 0.01) return;
+    m_preamp = clamped;
+    persistSoundProfile();
     emit preampChanged();
     applyAudioFilters();
 }
 
 void AudioPlayer::setEqBands(const QVariantList &bands)
 {
-    if (m_eqBands == bands) return;
-    m_eqBands = bands;
+    if (bands.size() != 10) return;
+    QVariantList validated;
+    for (const auto &band : bands) {
+        bool ok = false;
+        const double gain = band.toDouble(&ok);
+        if (!ok || !std::isfinite(gain)) return;
+        validated.append(std::clamp(gain, -12.0, 12.0));
+    }
+    if (m_eqBands == validated) return;
+    m_eqBands = validated;
+    persistSoundProfile();
     emit eqBandsChanged();
     applyAudioFilters();
 }
@@ -689,12 +939,24 @@ void AudioPlayer::applyAudioFilters()
         filters.append(AudioRouting::bassManagedUpmixFilter(false, m_speakerCutoff, m_subwooferCutoff, m_subwooferGain));
     }
 
+    // AUTO or plain Stereo without EQ remains an unprocessed decode/downmix.
+    // Only enhanced signal paths get explicit peak protection. The limiter has
+    // no make-up gain: quiet audio is unchanged, overload reduces all channels
+    // together, and timing is compensated rather than changing A/V sync.
+    if (m_protectionEnabled && !filters.isEmpty())
+        filters.append(AudioRouting::enhancementProtectionFilter());
     const QString filter = filters.isEmpty() ? QString() : QString("lavfi=[%1]").arg(filters.join(','));
     if (filter == m_appliedFilter) return;
     const QByteArray encodedFilter = filter.toUtf8();
     const int status = mpv_set_property_string(m_mpv, "af", encodedFilter.constData());
-    if (status < 0) qWarning() << "[AudioPlayer] Failed to apply filters:" << mpv_error_string(status);
-    else m_appliedFilter = filter;
+    if (status < 0) {
+        setPlaybackError(QStringLiteral("Sound processing could not be applied: %1. Disable enhancement or retry.")
+            .arg(QString::fromUtf8(mpv_error_string(status))));
+        // Never leave a rejected enhanced graph playing with unknown protection,
+        // or let a later Play simply resume the former valid graph.
+        setFileLoaded(false);
+        pause();
+    } else m_appliedFilter = filter;
 }
 
 void AudioPlayer::updateSourceAudioParams()
@@ -979,30 +1241,29 @@ void AudioPlayer::updateAudioAnalysis()
     const bool hasRealAudio = m_audioAnalyzer &&
                               m_audioAnalyzer->snapshot(targetLeft, targetRight, targetSpectrum);
 
-    if (!hasRealAudio) {
-        static std::mt19937 random(1337);
-        static std::uniform_real_distribution<double> energy(0.42, 0.92);
-        const double base = energy(random) * m_volume;
-        targetLeft = base * (0.86 + 0.14 * std::sin(m_position * 4.2));
-        targetRight = base * (0.86 + 0.14 * std::cos(m_position * 4.5));
-        for (int i = 0; i < 16; ++i) {
-            const double weighting = 1.0 - i / 21.0;
-            targetSpectrum[i] = base * weighting *
-                                (0.5 + 0.5 * std::sin(m_position * 8.0 + i * 0.42));
-        }
-    }
+    setAnalysisAvailable(hasRealAudio);
+    // No capture means unavailable/zero, never synthesized signal activity.
 
     const double leftRate = targetLeft > m_leftMeter ? 0.55 : 0.18;
     const double rightRate = targetRight > m_rightMeter ? 0.55 : 0.18;
-    m_leftMeter += (targetLeft - m_leftMeter) * leftRate;
-    m_rightMeter += (targetRight - m_rightMeter) * rightRate;
+    const double nextLeft = m_leftMeter + (targetLeft - m_leftMeter) * leftRate;
+    const double nextRight = m_rightMeter + (targetRight - m_rightMeter) * rightRate;
+    const bool metersUpdated = std::abs(nextLeft - m_leftMeter) > 0.001
+                               || std::abs(nextRight - m_rightMeter) > 0.001;
+    m_leftMeter = nextLeft;
+    m_rightMeter = nextRight;
 
+    bool spectrumUpdated = false;
     for (int i = 0; i < 16; ++i) {
         const double current = m_spectrum[i].toDouble();
         const double rate = targetSpectrum[i] > current ? 0.52 : 0.2;
-        m_spectrum[i] = current + (targetSpectrum[i] - current) * rate;
+        const double nextBand = current + (targetSpectrum[i] - current) * rate;
+        if (std::abs(nextBand - current) > 0.002) {
+            m_spectrum[i] = nextBand;
+            spectrumUpdated = true;
+        }
     }
 
-    emit metersChanged();
-    emit spectrumChanged();
+    if (metersUpdated) emit metersChanged();
+    if (spectrumUpdated) emit spectrumChanged();
 }

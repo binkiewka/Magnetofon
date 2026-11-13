@@ -13,12 +13,29 @@ Item {
     property string label: "MASTER VOLUME"
     property string displayValue: "0 dB"
 
+    activeFocusOnTab: true
+    Accessible.role: Accessible.Slider
+    Accessible.name: label
+    Accessible.description: displayValue + ". Arrow keys adjust; Home mutes; End sets full level."
+    Accessible.onIncreaseAction: adjust(0.02)
+    Accessible.onDecreaseAction: adjust(-0.02)
+    function adjust(step) { valueChangedByUser(Math.max(min, Math.min(max, value + step))) }
+    Keys.onUpPressed: adjust(0.02)
+    Keys.onRightPressed: adjust(0.02)
+    Keys.onDownPressed: adjust(-0.02)
+    Keys.onLeftPressed: adjust(-0.02)
+    Keys.onPressed: function(event) {
+        if (event.key === Qt.Key_Home) { valueChangedByUser(min); event.accepted = true }
+        else if (event.key === Qt.Key_End) { valueChangedByUser(max); event.accepted = true }
+    }
     signal valueChangedByUser(double val)
 
     property double normValue: Math.max(0.0, Math.min(1.0, (value - min) / (max - min)))
     property double angle: -135 + normValue * 270
 
     Theme { id: theme }
+
+    Rectangle { anchors.fill: parent; color: "transparent"; radius: 6; border.color: theme.cyan; visible: root.activeFocus }
 
     ColumnLayout {
         anchors.centerIn: parent
@@ -122,7 +139,7 @@ Item {
             MouseArea {
                 anchors.fill: parent
                 property real lastY: 0
-                onPressed: function(mouse) { lastY = mouse.y }
+                onPressed: function(mouse) { root.forceActiveFocus(); lastY = mouse.y }
                 onPositionChanged: function(mouse) {
                     if (!pressed) return
                     var dy = lastY - mouse.y
@@ -142,7 +159,7 @@ Item {
             text: root.label
             color: theme.textMuted
             font.family: theme.technicalFont
-            font.pixelSize: 8
+            font.pixelSize: 10
             font.weight: Font.DemiBold
             font.letterSpacing: 1.2
             Layout.alignment: Qt.AlignHCenter

@@ -2,15 +2,30 @@ import QtQuick 2.15
 
 Item {
     id: root
-    width: 24
+    width: 30
     height: 76
 
     property double value: 0.0
     property bool isSecondary: false
+    property string accessibleLabel: "Equalizer gain"
+    activeFocusOnTab: true
+    Accessible.role: Accessible.Slider
+    Accessible.name: accessibleLabel
+    Accessible.description: value.toFixed(1) + " dB"
+    Accessible.onIncreaseAction: adjust(0.5)
+    Accessible.onDecreaseAction: adjust(-0.5)
+    function adjust(step) { valueChangedByUser(Math.max(-12, Math.min(12, value + step))) }
+    Keys.onUpPressed: adjust(0.5)
+    Keys.onRightPressed: adjust(0.5)
+    Keys.onDownPressed: adjust(-0.5)
+    Keys.onLeftPressed: adjust(-0.5)
+    Keys.onPressed: function(event) { if (event.key === Qt.Key_Home) { valueChangedByUser(0); event.accepted = true } }
     signal valueChangedByUser(double val)
 
     property double normValue: Math.max(0.0, Math.min(1.0, (value + 12.0) / 24.0))
     Theme { id: theme }
+
+    Rectangle { anchors.fill: parent; color: "transparent"; radius: 4; border.color: theme.cyan; visible: root.activeFocus }
 
     Repeater {
         model: 5
@@ -86,7 +101,7 @@ Item {
 
     MouseArea {
         anchors.fill: parent
-        onPressed: function(mouse) { updateVal(mouse.y) }
+        onPressed: function(mouse) { root.forceActiveFocus(); updateVal(mouse.y) }
         onPositionChanged: function(mouse) { if (pressed) updateVal(mouse.y) }
         onWheel: function(wheel) {
             var delta = wheel.angleDelta.y > 0 ? 0.5 : -0.5

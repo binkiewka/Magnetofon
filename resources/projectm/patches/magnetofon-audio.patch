@@ -1,0 +1,185 @@
+--- a/src/AudioCapture.cpp
++++ b/src/AudioCapture.cpp
+@@ -9,6 +9,10 @@
+ #include <Poco/NotificationCenter.h>
+ 
+ #include <Poco/Util/Application.h>
++#include <projectM-4/projectM.h>
++#include <algorithm>
++#include <cmath>
++#include <iostream>
+ 
+ const char* AudioCapture::name() const
+ {
+@@ -21,6 +25,17 @@
+ 
+     auto& projectMWrapper = app.getSubsystem<ProjectMWrapper>();
+ 
++#ifdef MAGNETOFON_HAVE_PULSE
++    const long targetPid = _config->getInt64("magnetofonPid", 0);
++    if (targetPid > 0)
++    {
++        _magnetofonProjectM = projectMWrapper.ProjectM();
++        _magnetofonCapture = std::make_unique<PulseAudioAnalyzer>(true, targetPid, 44100);
++        _magnetofonCapture->setActive(true);
++        std::cout << "MAGNETOFON_AUDIO unavailable" << std::endl;
++        return; // Never open SDL/default microphone as a fallback in this mode.
++    }
++#endif
+     if (!_impl)
+     {
+         _impl = new AudioCaptureImpl;
+@@ -36,6 +51,9 @@
+ 
+ void AudioCapture::uninitialize()
+ {
++#ifdef MAGNETOFON_HAVE_PULSE
++    _magnetofonCapture.reset(); // Capture owns a cancellable nonblocking mainloop.
++#endif
+     if (_impl)
+     {
+         _impl->StopRecording();
+@@ -74,6 +92,9 @@
+ 
+ std::string AudioCapture::AudioDeviceName() const
+ {
++#ifdef MAGNETOFON_HAVE_PULSE
++    if (_magnetofonCapture) return "Magnetofon playback only";
++#endif
+     if (!_impl)
+     {
+         return {};
+@@ -94,6 +115,38 @@
+ 
+ void AudioCapture::FillBuffer()
+ {
++#ifdef MAGNETOFON_HAVE_PULSE
++    if (_magnetofonCapture)
++    {
++        std::uint64_t sequence = 0;
++        const bool live = _magnetofonCapture->pcmSnapshot(_magnetofonSamples, sequence);
++        if (live && sequence != _magnetofonSequence)
++        {
++            _magnetofonSequence = sequence;
++            const auto frames = std::min<unsigned>(PulseAudioAnalyzer::kFrames, projectm_pcm_get_max_samples());
++            const auto* samples = _magnetofonSamples.data() + (PulseAudioAnalyzer::kFrames - frames) * 2;
++            projectm_pcm_add_float(_magnetofonProjectM, samples, frames, PROJECTM_STEREO);
++        }
++        if (!live)
++        {
++            // No stale energy after capture loss/pause. Silence is not claimed live.
++            std::array<float, 128> silence{};
++            projectm_pcm_add_float(_magnetofonProjectM, silence.data(), 64, PROJECTM_STEREO);
++        }
++        const auto now = std::chrono::steady_clock::now();
++        if (live != _magnetofonLive || now - _magnetofonReport >= std::chrono::seconds(1))
++        {
++            double squares = 0;
++            if (live) for (const float value : _magnetofonSamples) squares += value * value;
++            const double rms = live ? std::sqrt(squares / _magnetofonSamples.size()) : 0;
++            std::cout << "MAGNETOFON_AUDIO " << (live ? (rms < 0.000001 ? "silent" : "live") : "unavailable")
++                      << " sequence=" << sequence << " rms=" << rms << std::endl;
++            _magnetofonLive = live;
++            _magnetofonReport = now;
++        }
++        return;
++    }
++#endif
+     if (!_impl)
+     {
+         return;
+--- a/src/AudioCapture.h
++++ b/src/AudioCapture.h
+@@ -6,8 +6,15 @@
+ #include <Poco/Util/AbstractConfiguration.h>
+ 
+ #include <memory>
++#include <chrono>
++#include <cstdint>
++
++#ifdef MAGNETOFON_HAVE_PULSE
++#include "PulseAudioAnalyzer.hpp"
++#endif
+ 
+ class AudioCaptureImpl;
++class projectm;
+ 
+ /**
+  * @brief Audio capturing proxy class/subsystem.
+@@ -82,6 +89,14 @@
+ 
+     Poco::AutoPtr<Poco::Util::AbstractConfiguration> _config; //!< View of the "audio" configuration subkey.
+ 
++    #ifdef MAGNETOFON_HAVE_PULSE
++    std::unique_ptr<PulseAudioAnalyzer> _magnetofonCapture;
++    projectm* _magnetofonProjectM{};
++    std::array<float, PulseAudioAnalyzer::kFrames * PulseAudioAnalyzer::kChannels> _magnetofonSamples{};
++    std::uint64_t _magnetofonSequence{};
++    std::chrono::steady_clock::time_point _magnetofonReport{};
++    bool _magnetofonLive{};
++#endif
+     AudioCaptureImpl* _impl{}; //!< The OS-specific capture implementation.
+ 
+     Poco::Logger& _logger{ Poco::Logger::get("AudioCapture") }; //!< The class logger.
+--- a/src/ProjectMSDLApplication.cpp
++++ b/src/ProjectMSDLApplication.cpp
+@@ -128,6 +128,12 @@
+                           .callback(
+                               OptionCallback<ProjectMSDLApplication>(this, &ProjectMSDLApplication::ListAudioDevices)));
+ 
++#ifdef MAGNETOFON_HAVE_PULSE
++    options.addOption(Option("magnetofonPid", "", "Record only this process playback stream; never the system mix or microphone.",
++                             false, "<pid>", true)
++                          .binding("audio.magnetofonPid", _commandLineOverrides));
++#endif
++
+     options.addOption(Option("audioDevice", "d",
+                              "Select an audio device to record from initially. Can be the numerical ID or the full device name. "
+                              "If the device is not found, the default device will be used instead.",
+--- a/src/RenderLoop.cpp
++++ b/src/RenderLoop.cpp
+@@ -265,6 +265,12 @@
+     switch (keyCode)
+     {
+         case SDLK_ESCAPE:
++            _sdlRenderingWindow.Windowed();
++            _projectMGui.Visible(false);
++            _sdlRenderingWindow.ShowCursor(false);
++            break;
++
++        case SDLK_g:
+             _projectMGui.Toggle();
+             _sdlRenderingWindow.ShowCursor(_projectMGui.Visible());
+             break;
+@@ -290,10 +296,8 @@
+ #endif
+ 
+         case SDLK_f:
+-            if (modifierPressed)
+-            {
+-                _sdlRenderingWindow.ToggleFullscreen();
+-            }
++        case SDLK_F11:
++            _sdlRenderingWindow.ToggleFullscreen();
+             break;
+ 
+         case SDLK_i:
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -97,3 +97,16 @@
+             VS_DPI_AWARE "PerMonitor"
+             )
+ endif ()
++
++# Magnetofon uses the same process-restricted capture implementation as its meters.
++# It is provided by the enclosing application checkout, not a second decoder.
++if (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND MAGNETOFON_AUDIO_SOURCE_DIR)
++    find_package(PkgConfig REQUIRED)
++    pkg_check_modules(MAGNETOFON_PULSE REQUIRED IMPORTED_TARGET libpulse)
++    find_package(Threads REQUIRED)
++    target_sources(projectMSDL PRIVATE "${MAGNETOFON_AUDIO_SOURCE_DIR}/PulseAudioAnalyzer.cpp")
++    target_compile_features(projectMSDL PRIVATE cxx_std_17)
++    target_include_directories(projectMSDL PRIVATE "${MAGNETOFON_AUDIO_SOURCE_DIR}")
++    target_compile_definitions(projectMSDL PRIVATE MAGNETOFON_HAVE_PULSE)
++    target_link_libraries(projectMSDL PRIVATE PkgConfig::MAGNETOFON_PULSE Threads::Threads)
++endif ()

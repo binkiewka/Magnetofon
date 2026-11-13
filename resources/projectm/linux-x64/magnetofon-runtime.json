@@ -1,0 +1,20 @@
+{
+  "format": 1,
+  "frontendCommit": "49863dd3343f8fe926c0d50db2436aa52db2aec6",
+  "coreCommit": "359bf7801e20b87712d6a89c8862f770c84ecdeb",
+  "pocoCommit": "96d182a99303fb068575294b36f0cc20da2e7b25",
+  "features": [
+    "process-isolated-pcm",
+    "audio-readiness-heartbeat",
+    "F-F11-Escape-fullscreen"
+  ],
+  "sourceSha256": {
+    "src-cpp/audio/PulseAudioAnalyzer.cpp": "00987a69145da9b2ca9a1a5d409cda1aa46150b26ab9d02eb821f5e5569623d7",
+    "src-cpp/audio/PulseAudioAnalyzer.hpp": "1efc0d7d58b6842221c1f827e058d3df299c717d18fe586e8657f42efc2ce036",
+    "resources/projectm/patches/frontend-sdl-cpp.patch": "63063cd14010704e4564b8a82a33a2f983e0092e78a0b18f8ee3d3dda7d14dc0",
+    "resources/projectm/patches/magnetofon-audio.patch": "636c8e163cd43d4b257f544abde1f9db6a0675d240afd2b1c7270ec19c9e4c5a",
+    "resources/projectm/patches/projectm-core.patch": "bcc4fb1e3c623453d4bb1747a67d3be7cfc6e7fc7001f204be127f0fa805d68f",
+    "resources/projectm/patches/window-drag.patch": "6e65a81cefe5251ece91f79db08cdb7103a453b467d3b45b8ed9d0ddc5a1a91d"
+  },
+  "helperSha256": "608233a42cfeaf374e0392b629ede37aa28d706793372cda7374a1dec504aeab"
+}

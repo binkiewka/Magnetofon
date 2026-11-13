@@ -1,4 +1,5 @@
 #include "VisualizerLauncher.hpp"
+#include "PresetPackDownloader.hpp"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -17,9 +18,9 @@ namespace {
 
 QString normalizedSource(const QString &source)
 {
-    return source.compare(QStringLiteral("ALL"), Qt::CaseInsensitive) == 0
-        ? QStringLiteral("ALL")
-        : QStringLiteral("CURATED");
+    if (source.compare(QStringLiteral("ALL"), Qt::CaseInsensitive) == 0) return QStringLiteral("ALL");
+    if (source.compare(QStringLiteral("USER"), Qt::CaseInsensitive) == 0) return QStringLiteral("USER");
+    return QStringLiteral("CURATED");
 }
 
 QString cleanExistingDirectory(const QString &path)
@@ -52,10 +53,17 @@ VisualizerLauncher::VisualizerLauncher(QObject *parent, bool restoreSettings)
         if (m_process->state() != QProcess::NotRunning) m_process->kill();
     });
 
+    m_audioFreshnessTimer.setInterval(500);
+    connect(&m_audioFreshnessTimer, &QTimer::timeout, this, [this]() {
+        if (m_audioLive && (!m_audioHeartbeat.isValid() || m_audioHeartbeat.elapsed() > 2000))
+            setAudioState(QStringLiteral("unavailable"));
+    });
+
     if (restoreSettings) loadSettings();
     refreshPresetLibrary();
 
-    if (m_presetSource == QStringLiteral("ALL") && !fullLibraryAvailable()) {
+    if ((m_presetSource == QStringLiteral("ALL") && !fullLibraryAvailable()) ||
+        (m_presetSource == QStringLiteral("USER") && !userLibraryAvailable())) {
         m_presetSource = QStringLiteral("CURATED");
         saveSetting(QStringLiteral("presetSource"), m_presetSource);
         refreshPresetLibrary();
@@ -64,7 +72,13 @@ VisualizerLauncher::VisualizerLauncher(QObject *parent, bool restoreSettings)
 
 VisualizerLauncher::~VisualizerLauncher()
 {
+    m_wantsRunning = false;
+    m_launchPending = false;
+    ++m_launchGeneration;
+    m_restartTimer.stop();
+    m_audioFreshnessTimer.stop();
     if (m_process && m_process->state() != QProcess::NotRunning) {
+        m_process->disconnect(this);
         m_process->terminate();
         if (!m_process->waitForFinished(1000)) {
             m_process->kill();
@@ -201,6 +215,10 @@ void VisualizerLauncher::setPresetSource(const QString &source)
         setStatusMessage(QStringLiteral("Install the full preset pack before selecting the full library"));
         return;
     }
+    if (normalized == QStringLiteral("USER") && !userLibraryAvailable()) {
+        setStatusMessage(QStringLiteral("No user presets found in the writable visuals folder"));
+        return;
+    }
     if (m_presetSource == normalized) return;
 
     m_presetSource = normalized;
@@ -216,19 +234,23 @@ QString VisualizerLauncher::findProjectMBinary() const
     const QString workingDir = QDir::currentPath();
 
     const QStringList candidatePaths = {
+#if defined(Q_OS_WIN)
+        appDir + QStringLiteral("/projectMSDL.exe"),
+        appDir + QStringLiteral("/resources/projectm/windows-x64/bin/projectMSDL.exe"),
+        workingDir + QStringLiteral("/resources/projectm/windows-x64/bin/projectMSDL.exe"),
+#else
         appDir + QStringLiteral("/../libexec/magnetofon/projectm/bin/projectMSDL"),
         appDir + QStringLiteral("/resources/projectm/linux-x64/bin/projectMSDL"),
         workingDir + QStringLiteral("/resources/projectm/linux-x64/bin/projectMSDL"),
         appDir + QStringLiteral("/../resources/projectm/linux-x64/bin/projectMSDL"),
         appDir + QStringLiteral("/../../resources/projectm/linux-x64/bin/projectMSDL"),
         appDir + QStringLiteral("/projectMSDL"),
-        appDir + QStringLiteral("/projectMSDL.exe")
+#endif
     };
 
     for (const QString &path : candidatePaths) {
         const QFileInfo info(path);
-        if (info.exists() && info.isFile()) {
-            qDebug() << "[VisualizerLauncher] Found projectM binary at:" << info.absoluteFilePath();
+        if (info.exists() && info.isFile() && info.isExecutable()) {
             return info.absoluteFilePath();
         }
     }
@@ -252,6 +274,21 @@ int VisualizerLauncher::countPresetFiles(const QString &directory)
     return count;
 }
 
+namespace {
+
+bool hasAnyPresetFile(const QString &directory)
+{
+    if (directory.isEmpty() || !QDir(directory).exists()) return false;
+
+    QDirIterator iterator(directory,
+                          {QStringLiteral("*.milk"), QStringLiteral("*.prjm")},
+                          QDir::Files,
+                          QDirIterator::Subdirectories);
+    return iterator.hasNext();
+}
+
+} // namespace
+
 QString VisualizerLauncher::findPresetDirectory(const QString &source) const
 {
     const QString appData = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
@@ -268,19 +305,20 @@ QString VisualizerLauncher::findPresetDirectory(const QString &source) const
             workingDir + QStringLiteral("/resources/projectm/linux-x64/presets"),
             appDir + QStringLiteral("/resources/projectm/linux-x64/presets")
         };
+    } else if (normalizedSource(source) == QStringLiteral("USER")) {
+        candidates = {appData + QStringLiteral("/visuals")};
     } else {
-        candidates = {
-            appData + QStringLiteral("/visuals"),
-            workingDir + QStringLiteral("/visuals/presets"),
-            appDir + QStringLiteral("/../share/magnetofon/visuals/presets"),
-            appDir + QStringLiteral("/visuals/presets"),
-            appDir + QStringLiteral("/../../visuals/presets")
-        };
+        // Only the committed version is active; staging/old versions must never
+        // become a library merely because they contain a few extracted presets.
+        const QString installed = PresetPackDownloader::installedPackDirectory(
+            appData + QStringLiteral("/visuals"));
+        if (!installed.isEmpty()) return installed;
+        return {}; // Loose custom files are USER, never a verified full pack.
     }
 
     for (const QString &candidate : candidates) {
         const QString directory = cleanExistingDirectory(candidate);
-        if (!directory.isEmpty() && countPresetFiles(directory) > 0) return directory;
+        if (!directory.isEmpty() && hasAnyPresetFile(directory)) return directory;
     }
     return {};
 }
@@ -305,36 +343,54 @@ QString VisualizerLauncher::findTextureDirectory() const
 
 void VisualizerLauncher::refreshPresetLibrary()
 {
+    const bool available = !findProjectMBinary().isEmpty();
+    const QString unavailableReason = available ? QString() :
+#if defined(Q_OS_WIN)
+        QStringLiteral("Native visuals are not included in this Windows package. Install a supported projectMSDL runtime beside the app to enable them.");
+#else
+        QStringLiteral("Native visuals are unavailable: install the bundled projectMSDL runtime.");
+#endif
+    if (m_runtimeAvailable != available || m_runtimeUnavailableReason != unavailableReason) {
+        m_runtimeAvailable = available;
+        m_runtimeUnavailableReason = unavailableReason;
+        emit runtimeInfoChanged();
+    }
     const QString curatedDirectory = findPresetDirectory(QStringLiteral("CURATED"));
     const QString fullDirectory = findPresetDirectory(QStringLiteral("ALL"));
+    const QString userDirectory = findPresetDirectory(QStringLiteral("USER"));
     const int curatedCount = countPresetFiles(curatedDirectory);
     const int fullCount = countPresetFiles(fullDirectory);
-    const QString activeDirectory = m_presetSource == QStringLiteral("ALL") ? fullDirectory : curatedDirectory;
-    const int activeCount = m_presetSource == QStringLiteral("ALL") ? fullCount : curatedCount;
+    const int userCount = countPresetFiles(userDirectory);
+    const QString activeDirectory = m_presetSource == QStringLiteral("ALL") ? fullDirectory :
+        (m_presetSource == QStringLiteral("USER") ? userDirectory : curatedDirectory);
+    const int activeCount = m_presetSource == QStringLiteral("ALL") ? fullCount :
+        (m_presetSource == QStringLiteral("USER") ? userCount : curatedCount);
 
     if (m_curatedPresetCount == curatedCount && m_fullPresetCount == fullCount &&
-        m_activePresetDirectory == activeDirectory && m_presetCount == activeCount) {
+        m_userPresetCount == userCount && m_activePresetDirectory == activeDirectory && m_presetCount == activeCount) {
         return;
     }
 
     m_curatedPresetCount = curatedCount;
     m_fullPresetCount = fullCount;
+    m_userPresetCount = userCount;
     m_activePresetDirectory = activeDirectory;
     m_presetCount = activeCount;
     emit presetLibraryChanged();
 }
 
-QString VisualizerLauncher::resolveAudioMonitorSource() const
+void VisualizerLauncher::setAudioState(const QString &state)
 {
-#if defined(Q_OS_LINUX)
-    QProcess pactl;
-    pactl.start(QStringLiteral("pactl"), {QStringLiteral("get-default-sink")});
-    if (pactl.waitForFinished(1200) && pactl.exitStatus() == QProcess::NormalExit && pactl.exitCode() == 0) {
-        const QString sink = QString::fromUtf8(pactl.readAllStandardOutput()).trimmed();
-        if (!sink.isEmpty()) return sink + QStringLiteral(".monitor");
-    }
-#endif
-    return QStringLiteral("@DEFAULT_MONITOR@");
+    const bool live = state == QStringLiteral("live") || state == QStringLiteral("silent");
+    const QString description = live
+        ? (state == QStringLiteral("silent") ? QStringLiteral("Audio live · digital silence")
+                                            : QStringLiteral("Audio live · Magnetofon playback"))
+        : (isRunning() ? QStringLiteral("Audio unavailable · play music or check your output")
+                       : QStringLiteral("Audio idle"));
+    if (m_audioLive == live && m_audioStatus == description) return;
+    m_audioLive = live;
+    m_audioStatus = description;
+    emit runtimeInfoChanged();
 }
 
 QStringList VisualizerLauncher::buildArguments() const
@@ -359,30 +415,49 @@ QStringList VisualizerLauncher::buildArguments() const
          << QStringLiteral("--hardCutsEnabled=%1").arg(m_hardCutsEnabled ? 1 : 0)
          << QStringLiteral("--hardCutSensitivity=%1").arg(QString::number(m_hardCutSensitivity, 'f', 1))
          << QStringLiteral("--hardCutDuration=%1").arg(m_hardCutDuration);
+#if defined(Q_OS_LINUX)
+    args << QStringLiteral("--magnetofonPid=%1").arg(QCoreApplication::applicationPid());
+#endif
     return args;
 
 }
 
 void VisualizerLauncher::toggleVisuals()
 {
-    if (isRunning()) stopVisuals();
+    if (m_wantsRunning || isRunning()) stopVisuals();
     else launchVisuals();
 }
 
 void VisualizerLauncher::launchVisuals()
 {
-    if (isRunning()) return;
+    if (isRunning() || m_launchPending) return;
+    refreshPresetLibrary();
+    if (!m_runtimeAvailable) {
+        setStatusMessage(m_runtimeUnavailableReason);
+        return;
+    }
+    m_wantsRunning = true;
+    ++m_launchGeneration;
+    startPreparedVisuals();
+}
 
+void VisualizerLauncher::startPreparedVisuals()
+{
+    if (!m_wantsRunning || isRunning()) return;
     refreshPresetLibrary();
     if (m_presetCount < 1 || m_activePresetDirectory.isEmpty()) {
+        m_wantsRunning = false;
         setStatusMessage(m_presetSource == QStringLiteral("ALL")
             ? QStringLiteral("Full preset library not found — install it or select Curated")
-            : QStringLiteral("No curated presets were found"));
+            : (m_presetSource == QStringLiteral("USER")
+               ? QStringLiteral("No user presets found in the writable visuals folder")
+               : QStringLiteral("No curated presets were found")));
         return;
     }
 
     const QString binary = findProjectMBinary();
     if (binary.isEmpty()) {
+        m_wantsRunning = false;
         setStatusMessage(QStringLiteral("projectMSDL runtime not found"));
         return;
     }
@@ -407,15 +482,12 @@ void VisualizerLauncher::launchVisuals()
         environment.insert(QStringLiteral("XDG_CONFIG_HOME"), m_projectMConfigDirectory->path());
     }
 
-#if defined(Q_OS_LINUX)
-    const QString monitorSource = resolveAudioMonitorSource();
-    environment.insert(QStringLiteral("PULSE_SOURCE"), monitorSource);
-    environment.insert(QStringLiteral("SDL_AUDIODRIVER"), QStringLiteral("pulseaudio"));
-    if (m_audioSourceName != monitorSource) {
-        m_audioSourceName = monitorSource;
-        emit runtimeInfoChanged();
-    }
-#endif
+    // The helper's process-restricted capture never reads default-monitor or
+    // microphone environment hints. It follows this player's actual sink input.
+    environment.remove(QStringLiteral("PULSE_SOURCE"));
+    m_audioHeartbeat.invalidate();
+    setAudioState(QStringLiteral("unavailable"));
+    m_audioFreshnessTimer.start();
 
     m_processOutputBuffer.clear();
     m_currentPresetName.clear();
@@ -430,12 +502,14 @@ void VisualizerLauncher::launchVisuals()
 
 void VisualizerLauncher::requestProcessStop(bool restartAfterStop)
 {
+    m_restartAfterStop = restartAfterStop && m_wantsRunning;
     if (!isRunning()) {
-        if (restartAfterStop) launchVisuals();
+        if (m_restartAfterStop) {
+            m_restartAfterStop = false;
+            launchVisuals();
+        }
         return;
     }
-
-    m_restartAfterStop = restartAfterStop;
     setStatusMessage(restartAfterStop ? QStringLiteral("Applying visual settings…")
                                       : QStringLiteral("Stopping visualizer…"));
     m_process->terminate();
@@ -444,8 +518,15 @@ void VisualizerLauncher::requestProcessStop(bool restartAfterStop)
 
 void VisualizerLauncher::stopVisuals()
 {
+    // Invalidate queued launches even if the helper has already become NotRunning.
+    m_wantsRunning = false;
+    m_launchPending = false;
+    ++m_launchGeneration;
     m_restartTimer.stop();
+    m_audioFreshnessTimer.stop();
+    setAudioState(QStringLiteral("unavailable"));
     requestProcessStop(false);
+    if (!isRunning()) setStatusMessage(QStringLiteral("Visualizer stopped"));
 }
 
 void VisualizerLauncher::restartIfRunning()
@@ -455,12 +536,12 @@ void VisualizerLauncher::restartIfRunning()
 
 void VisualizerLauncher::scheduleRestartIfRunning()
 {
-    if (isRunning()) m_restartTimer.start();
+    if (m_wantsRunning && isRunning()) m_restartTimer.start();
 }
 
 void VisualizerLauncher::performRestart()
 {
-    requestProcessStop(true);
+    if (m_wantsRunning) requestProcessStop(true);
 }
 
 void VisualizerLauncher::onProcessStateChanged(QProcess::ProcessState newState)
@@ -468,19 +549,29 @@ void VisualizerLauncher::onProcessStateChanged(QProcess::ProcessState newState)
     emit isRunningChanged();
 
     if (newState == QProcess::Running) {
-        setStatusMessage(QStringLiteral("Running · %1 presets · %2 order")
+        if (!m_wantsRunning) return; // A signal consumer may have just requested Stop.
+        setAudioState(QStringLiteral("unavailable"));
+        setStatusMessage(QStringLiteral("Rendering · %1 presets · %2 order")
                              .arg(m_presetCount)
                              .arg(m_shuffleEnabled ? QStringLiteral("shuffled") : QStringLiteral("sequential")));
         return;
     }
 
     if (newState == QProcess::NotRunning) {
+        m_audioFreshnessTimer.stop();
+        setAudioState(QStringLiteral("unavailable"));
         m_forceKillTimer.stop();
-        if (m_restartAfterStop) {
+        if (m_restartAfterStop && m_wantsRunning) {
             m_restartAfterStop = false;
-            QTimer::singleShot(0, this, &VisualizerLauncher::launchVisuals);
-        } else if (!m_processFailed) {
-            setStatusMessage(QStringLiteral("Visualizer stopped"));
+            const quint64 generation = m_launchGeneration;
+            QTimer::singleShot(0, this, [this, generation]() {
+                if (m_wantsRunning && generation == m_launchGeneration) launchVisuals();
+            });
+        } else {
+            m_wantsRunning = false;
+            m_launchPending = false;
+            m_audioFreshnessTimer.stop();
+            if (!m_processFailed) setStatusMessage(QStringLiteral("Visualizer stopped"));
         }
     }
 }
@@ -490,18 +581,33 @@ void VisualizerLauncher::onProcessError(QProcess::ProcessError error)
     if (error == QProcess::Crashed &&
         (m_restartAfterStop || m_statusMessage.startsWith(QStringLiteral("Stopping")))) return;
     m_processFailed = true;
+    m_wantsRunning = false;
+    m_launchPending = false;
+    ++m_launchGeneration;
+    m_audioFreshnessTimer.stop();
     setStatusMessage(QStringLiteral("Visualizer error: %1").arg(m_process->errorString()));
 }
 
 void VisualizerLauncher::readProcessOutput()
 {
     m_processOutputBuffer += QString::fromUtf8(m_process->readAllStandardOutput());
+    if (m_processOutputBuffer.size() > 65536) {
+        m_processOutputBuffer = m_processOutputBuffer.right(16384);
+    }
 
     qsizetype newline = -1;
     while ((newline = m_processOutputBuffer.indexOf(QLatin1Char('\n'))) >= 0) {
         const QString line = m_processOutputBuffer.left(newline).trimmed();
         m_processOutputBuffer.remove(0, newline + 1);
 
+        const QString audioMarker = QStringLiteral("MAGNETOFON_AUDIO ");
+        if (line.startsWith(audioMarker)) {
+            const QString state = line.mid(audioMarker.size()).section(QLatin1Char(' '), 0, 0);
+            if (state == QStringLiteral("live") || state == QStringLiteral("silent") || state == QStringLiteral("unavailable")) {
+                m_audioHeartbeat.restart();
+                setAudioState(state);
+            }
+        }
         const QString marker = QStringLiteral("Displaying preset: ");
         const qsizetype markerPosition = line.indexOf(marker);
         if (markerPosition >= 0) {

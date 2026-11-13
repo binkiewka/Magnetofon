@@ -6,6 +6,7 @@
 #include <QString>
 #include <QStringList>
 #include <QTimer>
+#include <QElapsedTimer>
 
 #include <memory>
 
@@ -14,6 +15,8 @@ class QTemporaryDir;
 class VisualizerLauncher : public QObject {
     Q_OBJECT
     Q_PROPERTY(bool isRunning READ isRunning NOTIFY isRunningChanged)
+    Q_PROPERTY(bool runtimeAvailable READ runtimeAvailable NOTIFY runtimeInfoChanged)
+    Q_PROPERTY(QString runtimeUnavailableReason READ runtimeUnavailableReason NOTIFY runtimeInfoChanged)
     Q_PROPERTY(int targetFps READ targetFps WRITE setTargetFps NOTIFY settingsChanged)
     Q_PROPERTY(int presetDuration READ presetDuration WRITE setPresetDuration NOTIFY settingsChanged)
     Q_PROPERTY(double transitionDuration READ transitionDuration WRITE setTransitionDuration NOTIFY settingsChanged)
@@ -27,17 +30,23 @@ class VisualizerLauncher : public QObject {
     Q_PROPERTY(QString statusMessage READ statusMessage NOTIFY runtimeInfoChanged)
     Q_PROPERTY(QString currentPresetName READ currentPresetName NOTIFY runtimeInfoChanged)
     Q_PROPERTY(QString activePresetDirectory READ activePresetDirectory NOTIFY presetLibraryChanged)
+    Q_PROPERTY(bool audioLive READ audioLive NOTIFY runtimeInfoChanged)
+    Q_PROPERTY(QString audioStatus READ audioStatus NOTIFY runtimeInfoChanged)
     Q_PROPERTY(QString audioSourceName READ audioSourceName NOTIFY runtimeInfoChanged)
     Q_PROPERTY(int presetCount READ presetCount NOTIFY presetLibraryChanged)
     Q_PROPERTY(int curatedPresetCount READ curatedPresetCount NOTIFY presetLibraryChanged)
     Q_PROPERTY(int fullPresetCount READ fullPresetCount NOTIFY presetLibraryChanged)
     Q_PROPERTY(bool fullLibraryAvailable READ fullLibraryAvailable NOTIFY presetLibraryChanged)
+    Q_PROPERTY(int userPresetCount READ userPresetCount NOTIFY presetLibraryChanged)
+    Q_PROPERTY(bool userLibraryAvailable READ userLibraryAvailable NOTIFY presetLibraryChanged)
 
 public:
     explicit VisualizerLauncher(QObject *parent = nullptr, bool restoreSettings = true);
     ~VisualizerLauncher() override;
 
     bool isRunning() const { return m_process && m_process->state() != QProcess::NotRunning; }
+    bool runtimeAvailable() const { return m_runtimeAvailable; }
+    QString runtimeUnavailableReason() const { return m_runtimeUnavailableReason; }
 
     int targetFps() const { return m_targetFps; }
     void setTargetFps(int fps);
@@ -72,11 +81,15 @@ public:
     QString statusMessage() const { return m_statusMessage; }
     QString currentPresetName() const { return m_currentPresetName; }
     QString activePresetDirectory() const { return m_activePresetDirectory; }
+    bool audioLive() const { return m_audioLive; }
+    QString audioStatus() const { return m_audioStatus; }
     QString audioSourceName() const { return m_audioSourceName; }
     int presetCount() const { return m_presetCount; }
     int curatedPresetCount() const { return m_curatedPresetCount; }
     int fullPresetCount() const { return m_fullPresetCount; }
     bool fullLibraryAvailable() const { return m_fullPresetCount > 0; }
+    int userPresetCount() const { return m_userPresetCount; }
+    bool userLibraryAvailable() const { return m_userPresetCount > 0; }
 
     QStringList buildArguments() const;
 
@@ -102,7 +115,8 @@ private:
     QString findProjectMBinary() const;
     QString findPresetDirectory(const QString &source) const;
     QString findTextureDirectory() const;
-    QString resolveAudioMonitorSource() const;
+    void setAudioState(const QString &state);
+    void startPreparedVisuals();
     static int countPresetFiles(const QString &directory);
     void loadSettings();
     void saveSetting(const QString &key, const QVariant &value) const;
@@ -114,8 +128,15 @@ private:
     std::unique_ptr<QTemporaryDir> m_projectMConfigDirectory;
     QTimer m_restartTimer;
     QTimer m_forceKillTimer;
+    QTimer m_audioFreshnessTimer;
+    QElapsedTimer m_audioHeartbeat;
     QString m_processOutputBuffer;
     bool m_restartAfterStop = false;
+    bool m_wantsRunning = false;
+    bool m_launchPending = false;
+    quint64 m_launchGeneration = 0;
+    bool m_runtimeAvailable = false;
+    QString m_runtimeUnavailableReason;
     bool m_processFailed = false;
     bool m_persistSettings = true;
 
@@ -133,10 +154,13 @@ private:
     QString m_statusMessage = QStringLiteral("Visualizer stopped");
     QString m_currentPresetName;
     QString m_activePresetDirectory;
-    QString m_audioSourceName;
+    QString m_audioSourceName = QStringLiteral("Magnetofon playback only");
+    bool m_audioLive = false;
+    QString m_audioStatus = QStringLiteral("Audio idle");
     int m_presetCount = 0;
     int m_curatedPresetCount = 0;
     int m_fullPresetCount = 0;
+    int m_userPresetCount = 0;
 };
 
 #endif // VISUALIZER_LAUNCHER_HPP

@@ -31,12 +31,21 @@ HifiPanel {
             Layout.fillWidth: true
             title: "TAPE PLAYBACK ENGINE"
             iconText: "◉"
+            HifiButton {
+                objectName: "repeatButton"
+                isCompact: true
+                text: "REPEAT " + audioPlayer.repeatMode
+                isPrimary: audioPlayer.repeatMode !== "OFF"
+                onClicked: audioPlayer.repeatMode = audioPlayer.repeatMode === "OFF" ? "ALL" : (audioPlayer.repeatMode === "ALL" ? "ONE" : "OFF")
+                ToolTip.visible: hovered
+                ToolTip.text: "Repeat Off / All / One; independent of gapless playback"
+            }
             Text {
-                text: playlistModel.count === 0 ? "TRANSPORT READY"
-                                               : (root.isPlaying ? "TRANSPORT RUNNING" : "TRANSPORT PAUSED")
+                text: playlistModel.count === 0 ? "READY"
+                                               : (root.isPlaying ? "PLAYING" : "PAUSED")
                 color: playlistModel.count > 0 && root.isPlaying ? theme.cyan : theme.textMuted
                 font.family: theme.technicalFont
-                font.pixelSize: 7
+                font.pixelSize: 10
                 font.letterSpacing: 0.8
             }
         }
@@ -46,6 +55,7 @@ HifiPanel {
             Layout.fillHeight: true
             Layout.minimumHeight: 92
             isPlaying: root.isPlaying && playlistModel.count > 0
+            hasMedia: playlistModel.count > 0
             progress: root.progress
             duration: root.duration
         }
@@ -106,7 +116,7 @@ HifiPanel {
                     text: "LOGIC CONTROL"
                     color: "#41524d"
                     font.family: theme.technicalFont
-                    font.pixelSize: 7
+                    font.pixelSize: 10
                     font.letterSpacing: 0.9
                     Layout.leftMargin: 4
                 }
@@ -124,18 +134,21 @@ HifiPanel {
                 Item { Layout.fillWidth: true }
 
                 HifiButton {
+                    Accessible.name: "Previous track"
                     text: "|◀"
                     implicitWidth: 30
                     implicitHeight: 22
                     onClicked: root.previousRequested()
                 }
                 HifiButton {
+                    Accessible.name: root.isPlaying ? "Pause" : "Play"
                     text: root.isPlaying && playlistModel.count > 0 ? "Ⅱ" : "▶"
                     implicitWidth: 30
                     implicitHeight: 22
                     onClicked: root.playPauseRequested()
                 }
                 HifiButton {
+                    Accessible.name: "Stop"
                     text: "■"
                     isStop: true
                     implicitWidth: 30
@@ -143,6 +156,7 @@ HifiPanel {
                     onClicked: root.stopRequested()
                 }
                 HifiButton {
+                    Accessible.name: "Next track"
                     text: "▶|"
                     implicitWidth: 30
                     implicitHeight: 22

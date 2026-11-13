@@ -35,7 +35,7 @@ Item {
                 text: root.iconText
                 color: theme.cyanBright
                 font.family: theme.technicalFont
-                font.pixelSize: 8
+                font.pixelSize: 10
                 font.bold: true
             }
         }
@@ -44,7 +44,7 @@ Item {
             text: root.title
             color: theme.textSoft
             font.family: theme.technicalFont
-            font.pixelSize: 9
+            font.pixelSize: 11
             font.weight: Font.DemiBold
             font.letterSpacing: 1.45
             Layout.fillWidth: true
