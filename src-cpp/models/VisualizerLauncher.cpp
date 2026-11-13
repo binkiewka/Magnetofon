@@ -467,6 +467,17 @@ void VisualizerLauncher::startPreparedVisuals()
     const QString libraryDirectory = QFileInfo(binaryDirectory + QStringLiteral("/../lib")).absoluteFilePath();
 
     QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
+    // AppImage dependencies live beside the main application, while the owned
+    // helper retains its original libexec-relative runtime. A parent's ELF
+    // RUNPATH is not inherited by an executed child: include the common bundle
+    // directory explicitly instead of silently relying on host SDL/Pulse libs.
+    const QString commonBundleLibraries = QDir::cleanPath(
+        QCoreApplication::applicationDirPath() + QStringLiteral("/../lib"));
+    if (QFileInfo::exists(commonBundleLibraries + QStringLiteral("/libQt6Core.so.6"))) {
+        const QString existingPath = environment.value(QStringLiteral("LD_LIBRARY_PATH"));
+        environment.insert(QStringLiteral("LD_LIBRARY_PATH"),
+                           commonBundleLibraries + (existingPath.isEmpty() ? QString() : QStringLiteral(":") + existingPath));
+    }
     if (QDir(libraryDirectory).exists()) {
         const QString existingPath = environment.value(QStringLiteral("LD_LIBRARY_PATH"));
         environment.insert(QStringLiteral("LD_LIBRARY_PATH"),

@@ -18,6 +18,8 @@ Full queue snapshots use QSaveFile atomically, with a queue UUID. Structural cha
 
 The Linux helper compiles the same PulseAudioAnalyzer source with an explicit parent PID and44.1kHz capture. Recording is restricted to that sink-input before connecting, follows its actual sink and never falls back to microphone/system mix. The bounded finite-sample PCM mailbox carries sequence/freshness data. Structured live/silent/unavailable heartbeats are independent of rendering state. `scripts/verify-projectm-runtime.py` prevents a stale helper/source/patch bundle from shipping; the build script records a new receipt only after rebuilding.
 
+AppImage helper launches explicitly include the main bundle library directory as well as the libexec runtime: a parent executable RUNPATH is not inherited by child processes. Downloaded-artifact testing verified actual loaded SDL/Pulse paths and live capture, not only that the main window opens.
+
 The pinned vendor sources plus committed idempotent patches reproduce the modified frontend. Original third-party source/licensing information and patches are shipped with the repository.
 
 ## Local qualification
