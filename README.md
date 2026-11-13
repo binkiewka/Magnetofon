@@ -50,7 +50,7 @@
 
 ### Hi-Fi Audio Console Modules
 - **Power Stage (`AmplifierPanel`)**: Tactile master-volume knob with calibrated software attenuation; explicit `AUTO`, `STEREO`, `2.1` and `SURROUND` modes, independent speaker profiles and switchable enhanced-DSP overload protection.
-- **Twin Signal Level Monitor (`VuMeterPanel`)**: Dual McIntosh cyan blue VU meters painted with QPainter and composited by the Qt scene graph, with peak warning LEDs.
+- **Twin Signal Level Monitor (`VuMeterPanel`)**: Dual McIntosh cyan blue VU meters painted with QPainter and composited by the Qt scene graph, with high-RMS indicators (not sample-peak or speaker-power measurements).
 - **10-Band Frequency Processor (`EqualizerPanel`)**: 16-band real-time spectrum analyzer, EQ preset selector, `POWER: ON / BYPASS` toggle, gain slider, and 10 EQ frequency band sliders.
 - **Input & Active Track Deck (`ProgramMonitorPanel`)**: VFD screen displaying album art, track details, source codec/layout, decoded PCM output, selectable container audio tracks, timing information, and a segmented seek bar.
 - **Program Memory (`PlaylistPanel`)**: Music and video queue with individual-file loading, recursive folder discovery, file/folder drag-and-drop, duplicate prevention, and M3U/M3U8 playlist persistence.
@@ -146,6 +146,14 @@ The bundled curated presets remain in the read-only application resources. The o
 ## Release notes
 
 [v2.2.0 — dependable listening and integrated visuals](docs/releases/v2.2.0.md). Linux x86-64 includes native projectM and stream metering. Windows includes native playback/video but does not claim those Linux-only capture/visuals features. Prebuilt Linux bundles target Ubuntu24.04/Mint22-generation systems; source builds can target other compatible distributions. Published bundles carry checksums; hosted startup checks do not replace physical speaker/video/device testing.
+
+## Download & first run
+
+[Download Magnetofon v2.2.0](https://github.com/binkiewka/Magnetofon/releases/tag/v2.2.0) and compare your file with the supplied SHA256SUMS.
+
+- **Linux DEB (Ubuntu24.04 / Mint22 generation):** install the downloaded package with your package manager, or `sudo apt install ./magnetofon-2.2.0-Linux.deb`. This resolves the declared runtime dependencies.
+- **Linux AppImage:** make the downloaded file executable and run it. Native visuals and curated presets are included. Systems without FUSE can use `APPIMAGE_EXTRACT_AND_RUN=1 ./Magnetofon-2.2.0-x86_64.AppImage`.
+- **Windows x64 ZIP:** extract the complete ZIP into one folder, install the included `vc_redist.x64.exe` if the Microsoft C++ runtime is not already present, then run `MagnetofonNative.exe`. Keep its DLLs, plugins and QML directories together. Native projectM/stream metering remain Linux-only.
 
 ## Installation & Build
 
