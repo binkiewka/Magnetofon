@@ -45,6 +45,11 @@ endif()
 
 option(MAGNETOFON_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 add_library(MagnetofonBuildOptions INTERFACE)
+if(MSVC)
+    # The portable capture/DSP sources use the conventional math constants;
+    # MSVC requires this definition before its standard math headers are read.
+    target_compile_definitions(MagnetofonBuildOptions INTERFACE _USE_MATH_DEFINES)
+endif()
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(MagnetofonBuildOptions INTERFACE -Wall -Wextra -Wpedantic)
     if(MAGNETOFON_ENABLE_SANITIZERS)
